@@ -1,21 +1,60 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { onAuthStateChanged } from 'firebase/auth'
+import { auth } from '@/lib/firebase'
+import { signInWithGoogle, signInWithFacebook, signInWithApple } from '@/lib/auth'
 
 export default function LoginPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  // Redirect if already logged in
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        router.push('/book')
+      }
+    })
+    return () => unsubscribe()
+  }, [router])
 
   const handleSocialLogin = async (provider: string) => {
     setIsLoading(provider)
-    // Will implement Firebase auth next
-    console.log(`Logging in with ${provider}`)
+    setError(null)
 
-    // Simulate login success and redirect to booking
-    setTimeout(() => {
-      router.push('/book')
-    }, 1000)
+    try {
+      let result
+      switch (provider) {
+        case 'google':
+          result = await signInWithGoogle()
+          break
+        case 'facebook':
+          result = await signInWithFacebook()
+          break
+        case 'apple':
+          result = await signInWithApple()
+          break
+        case 'phone':
+          // For phone auth, redirect to a separate phone auth page
+          router.push('/auth/phone')
+          return
+        default:
+          throw new Error('Invalid provider')
+      }
+
+      if (result.success) {
+        router.push('/book')
+      } else {
+        setError(result.error || 'Failed to sign in')
+      }
+    } catch (err: any) {
+      setError(err.message || 'An error occurred')
+    } finally {
+      setIsLoading(null)
+    }
   }
 
   return (
@@ -45,6 +84,13 @@ export default function LoginPage() {
         <h3 className="text-2xl font-bold text-petrol-black mb-2">Welcome Back</h3>
         <p className="text-petrol-gray">Sign in to access your motorsport community</p>
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="w-full max-w-md bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-4">
+          <p className="text-sm">{error}</p>
+        </div>
+      )}
 
       {/* Login Buttons */}
       <div className="w-full max-w-md space-y-4">

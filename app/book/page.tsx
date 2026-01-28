@@ -1,7 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { onAuthStateChanged } from 'firebase/auth'
+import { auth } from '@/lib/firebase'
+import { createBooking } from '@/lib/bookings'
 
 const SERVICES = [
   'Oil change',
@@ -17,6 +20,7 @@ const SERVICES = [
 
 export default function BookingPage() {
   const router = useRouter()
+  const [user, setUser] = useState<any>(null)
   const [formData, setFormData] = useState({
     vinNumber: '',
     service: '',
@@ -27,20 +31,59 @@ export default function BookingPage() {
   })
   const [photos, setPhotos] = useState<File[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Check authentication
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (!currentUser) {
+        router.push('/')
+      } else {
+        setUser(currentUser)
+      }
+    })
+    return () => unsubscribe()
+  }, [router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
+    setError(null)
 
-    // Will implement Firebase save next
-    console.log('Booking submitted:', formData, photos)
-
-    // Simulate submission
-    setTimeout(() => {
+    if (!user) {
+      setError('You must be logged in to book a service')
       setIsSubmitting(false)
-      alert('Booking request submitted! We\'ll review it and send you a confirmation email.')
-      router.push('/dashboard')
-    }, 1000)
+      return
+    }
+
+    try {
+      const bookingData = {
+        userId: user.uid,
+        customerName: user.displayName || 'Customer',
+        customerEmail: user.email || '',
+        customerPhone: user.phoneNumber || '',
+        vinNumber: formData.vinNumber,
+        service: formData.service,
+        otherService: formData.otherService || undefined,
+        description: formData.description,
+        photos: [],
+        preferredDate: formData.preferredDate,
+        preferredTime: formData.preferredTime,
+      }
+
+      const result = await createBooking(bookingData, photos)
+
+      if (result.success) {
+        alert('Booking request submitted! We\'ll review it and send you a confirmation email.')
+        router.push('/my-bookings')
+      } else {
+        setError(result.error || 'Failed to submit booking')
+      }
+    } catch (err: any) {
+      setError(err.message || 'An error occurred')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -74,6 +117,13 @@ export default function BookingPage() {
         <div className="bg-white rounded-lg shadow-lg p-6">
           <h2 className="text-2xl font-bold text-petrol-black mb-2">Book a Service</h2>
           <p className="text-petrol-gray mb-6">Fill in the details below and we'll get back to you</p>
+
+          {/* Error Message */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6">
+              <p className="text-sm">{error}</p>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* VIN Number */}

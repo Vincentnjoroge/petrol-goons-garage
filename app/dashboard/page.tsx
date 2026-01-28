@@ -1,54 +1,101 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-
-// Mock data for demo
-const MOCK_BOOKINGS = [
-  {
-    id: '1',
-    customerName: 'John Doe',
-    customerEmail: 'john@example.com',
-    vinNumber: 'WBADT43452G12345',
-    service: 'Oil change',
-    description: 'Regular oil change needed',
-    preferredDate: '2026-02-01',
-    preferredTime: '10:00',
-    status: 'pending',
-    submittedAt: '2026-01-26T10:30:00',
-  },
-  {
-    id: '2',
-    customerName: 'Jane Smith',
-    customerEmail: 'jane@example.com',
-    vinNumber: 'JT2BF18K7X0123456',
-    service: 'Brake pads',
-    description: 'Squeaking noise when braking',
-    preferredDate: '2026-02-02',
-    preferredTime: '14:00',
-    status: 'pending',
-    submittedAt: '2026-01-26T11:15:00',
-  },
-]
+import { onAuthStateChanged } from 'firebase/auth'
+import { auth } from '@/lib/firebase'
+import { getAllBookings, updateBookingStatus, Booking } from '@/lib/bookings'
+import { sendBookingEmail, getBookingConfirmationEmailHtml, getBookingRejectionEmailHtml } from '@/lib/email'
 
 export default function DashboardPage() {
   const router = useRouter()
-  const [bookings, setBookings] = useState(MOCK_BOOKINGS)
-  const [selectedBooking, setSelectedBooking] = useState<string | null>(null)
+  const [user, setUser] = useState<any>(null)
+  const [bookings, setBookings] = useState<Booking[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleApprove = (bookingId: string) => {
-    setBookings(bookings.map(b =>
-      b.id === bookingId ? { ...b, status: 'approved' } : b
-    ))
-    // Will send email notification here
-    alert('Booking approved! Email confirmation will be sent to the customer.')
+  // Check authentication
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (!currentUser) {
+        router.push('/')
+      } else {
+        setUser(currentUser)
+      }
+    })
+    return () => unsubscribe()
+  }, [router])
+
+  // Load bookings
+  useEffect(() => {
+    async function loadBookings() {
+      setLoading(true)
+      const data = await getAllBookings()
+      setBookings(data)
+      setLoading(false)
+    }
+
+    if (user) {
+      loadBookings()
+    }
+  }, [user])
+
+  const handleApprove = async (booking: Booking) => {
+    if (!booking.id) return
+
+    try {
+      const result = await updateBookingStatus(booking.id, 'approved', user?.uid)
+
+      if (result.success) {
+        // Send email notification
+        const emailHtml = getBookingConfirmationEmailHtml(booking)
+        await sendBookingEmail(
+          booking.customerEmail,
+          'Booking Confirmed - Petrol Goons Garage',
+          emailHtml
+        )
+
+        // Update local state
+        setBookings(bookings.map(b =>
+          b.id === booking.id ? { ...b, status: 'approved' } : b
+        ))
+
+        alert('Booking approved! Confirmation email sent to customer.')
+      } else {
+        setError(result.error || 'Failed to approve booking')
+      }
+    } catch (err: any) {
+      setError(err.message || 'An error occurred')
+    }
   }
 
-  const handleReject = (bookingId: string) => {
-    setBookings(bookings.map(b =>
-      b.id === bookingId ? { ...b, status: 'rejected' } : b
-    ))
-    alert('Booking rejected. Customer will be notified.')
+  const handleReject = async (booking: Booking) => {
+    if (!booking.id) return
+
+    try {
+      const result = await updateBookingStatus(booking.id, 'rejected', user?.uid)
+
+      if (result.success) {
+        // Send email notification
+        const emailHtml = getBookingRejectionEmailHtml(booking)
+        await sendBookingEmail(
+          booking.customerEmail,
+          'Booking Update - Petrol Goons Garage',
+          emailHtml
+        )
+
+        // Update local state
+        setBookings(bookings.map(b =>
+          b.id === booking.id ? { ...b, status: 'rejected' } : b
+        ))
+
+        alert('Booking rejected. Customer has been notified.')
+      } else {
+        setError(result.error || 'Failed to reject booking')
+      }
+    } catch (err: any) {
+      setError(err.message || 'An error occurred')
+    }
   }
 
   const getStatusColor = (status: string) => {
@@ -58,6 +105,17 @@ export default function DashboardPage() {
       case 'rejected': return 'bg-red-100 text-red-800'
       default: return 'bg-gray-100 text-gray-800'
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-petrol-yellow border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-petrol-gray">Loading bookings...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -86,6 +144,13 @@ export default function DashboardPage() {
 
       {/* Dashboard Content */}
       <div className="max-w-7xl mx-auto p-4 py-8">
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6">
+            <p className="text-sm">{error}</p>
+          </div>
+        )}
+
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
@@ -190,13 +255,13 @@ export default function DashboardPage() {
                     {booking.status === 'pending' && (
                       <div className="flex flex-col space-y-2 ml-4">
                         <button
-                          onClick={() => handleApprove(booking.id)}
+                          onClick={() => handleApprove(booking)}
                           className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
                         >
                           Approve
                         </button>
                         <button
-                          onClick={() => handleReject(booking.id)}
+                          onClick={() => handleReject(booking)}
                           className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
                         >
                           Reject
