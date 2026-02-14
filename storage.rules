@@ -1,0 +1,28 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Booking photos: authenticated users can upload to their own folder
+    match /bookings/{userId}/{allPaths=**} {
+      // Users can upload their own photos (max 5MB)
+      allow write: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      // Users can read their own photos
+      allow read: if request.auth != null && request.auth.uid == userId;
+      // Admins can read all photos
+      allow read: if request.auth != null && request.auth.token.email in [
+        'michaeldiro@gmail.com',
+        'mwololokimanthi@gmail.com',
+        'thomasaquinas689@gmail.com',
+        'viny.njoroge1@gmail.com'
+      ];
+    }
+
+    // Deny all other access
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

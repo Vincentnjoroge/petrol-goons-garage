@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { onAuthStateChanged } from 'firebase/auth'
-import { auth } from '@/lib/firebase'
-import { createBooking } from '@/lib/bookings'
+import { onAuthStateChanged, signOut, User } from 'firebase/auth'
+import { createBooking, generateTimeSlots, formatSlotTime, getBookedSlots, isSunday, getUserCars } from '@/lib/bookings'
+import { sendBookingEmail, getBookingReceivedEmailHtml, getNewBookingAdminEmailHtml } from '@/lib/email'
+import { ADMIN_EMAILS } from '@/lib/admin'
 
 const SERVICES = [
   'Oil change',
@@ -18,9 +19,22 @@ const SERVICES = [
   'Other'
 ]
 
+const ALL_SLOTS = generateTimeSlots()
+
+type MechanicPreference = 'garage-assigns' | 'mike-d' | 'kimanthi' | 'thomas' | 'viny'
+
+const MECHANICS: { id: MechanicPreference; name: string }[] = [
+  { id: 'mike-d', name: 'Mike D' },
+  { id: 'kimanthi', name: 'Kimanthi' },
+  { id: 'thomas', name: 'Thomas' },
+  { id: 'viny', name: 'Viny' },
+]
+
 export default function BookingPage() {
   const router = useRouter()
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
+  const [pageReady, setPageReady] = useState(false)
+  const [showMoreDetails, setShowMoreDetails] = useState(false)
   const [formData, setFormData] = useState({
     vinNumber: '',
     service: '',
@@ -28,243 +42,715 @@ export default function BookingPage() {
     description: '',
     preferredDate: '',
     preferredTime: '',
+    contactEmail: '',
   })
+  const [mechanicPreference, setMechanicPreference] = useState<MechanicPreference>('garage-assigns')
   const [photos, setPhotos] = useState<File[]>([])
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Check authentication
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      if (!currentUser) {
-        router.push('/')
-      } else {
-        setUser(currentUser)
-      }
-    })
-    return () => unsubscribe()
-  }, [router])
+  // Slot availability state
+  const [bookedSlots, setBookedSlots] = useState<string[]>([])
+  const [loadingSlots, setLoadingSlots] = useState(false)
+  const [selectedDateIsSunday, setSelectedDateIsSunday] = useState(false)
+  // Saved cars
+  const [savedCars, setSavedCars] = useState<string[]>([])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
+  useEffect(() => {
+    let unsubscribe: (() => void) | undefined
+
+    const initAuth = async () => {
+      try {
+        const { auth } = await import('@/lib/firebase')
+
+        const timeout = setTimeout(() => {
+          if (!pageReady) {
+            router.replace('/')
+          }
+        }, 5000)
+
+        unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+          clearTimeout(timeout)
+          if (currentUser) {
+            setUser(currentUser)
+            setPageReady(true)
+            // Load saved cars for auto-fill
+            try {
+              const cars = await getUserCars(currentUser.uid)
+              setSavedCars(cars)
+            } catch {}
+          } else {
+            router.replace('/')
+          }
+        })
+      } catch (err) {
+        console.error('Auth init error:', err)
+        router.replace('/')
+      }
+    }
+
+    initAuth()
+
+    return () => {
+      if (unsubscribe) unsubscribe()
+    }
+  }, [router, pageReady])
+
+  // When date changes, fetch booked slots for that date
+  const handleDateChange = useCallback(async (dateStr: string) => {
+    setFormData(prev => ({ ...prev, preferredDate: dateStr, preferredTime: '' }))
     setError(null)
 
-    if (!user) {
-      setError('You must be logged in to book a service')
-      setIsSubmitting(false)
+    if (!dateStr) {
+      setBookedSlots([])
+      setSelectedDateIsSunday(false)
       return
     }
 
+    // Check if Sunday
+    if (isSunday(dateStr)) {
+      setSelectedDateIsSunday(true)
+      setBookedSlots([])
+      return
+    }
+
+    setSelectedDateIsSunday(false)
+    setLoadingSlots(true)
+
     try {
-      const bookingData = {
+      const slots = await getBookedSlots(dateStr)
+      setBookedSlots(slots)
+    } catch (err) {
+      console.error('Error fetching slots:', err)
+      setBookedSlots([])
+    }
+
+    setLoadingSlots(false)
+  }, [])
+
+  // Check if a time slot has already passed (for today)
+  const isSlotPast = (slot: string): boolean => {
+    const today = new Date().toISOString().split('T')[0]
+    if (formData.preferredDate !== today) return false
+
+    const now = new Date()
+    const [hours, minutes] = slot.split(':').map(Number)
+    const slotTime = new Date()
+    slotTime.setHours(hours, minutes, 0, 0)
+
+    return slotTime <= now
+  }
+
+  const handlePhotoAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files) return
+
+    const newFiles = Array.from(files)
+    const maxFiles = 5
+    const maxSize = 5 * 1024 * 1024 // 5MB per file
+
+    // Filter valid files
+    const validFiles = newFiles.filter(file => {
+      if (!file.type.startsWith('image/')) return false
+      if (file.size > maxSize) return false
+      return true
+    })
+
+    const totalFiles = photos.length + validFiles.length
+    if (totalFiles > maxFiles) {
+      setError(`You can upload up to ${maxFiles} photos`)
+      return
+    }
+
+    const updatedPhotos = [...photos, ...validFiles]
+    setPhotos(updatedPhotos)
+
+    // Create previews
+    validFiles.forEach(file => {
+      const reader = new FileReader()
+      reader.onload = (ev) => {
+        setPhotoPreviews(prev => [...prev, ev.target?.result as string])
+      }
+      reader.readAsDataURL(file)
+    })
+
+    // Reset the input so the same file can be re-selected
+    e.target.value = ''
+  }
+
+  const handlePhotoRemove = (index: number) => {
+    setPhotos(prev => prev.filter((_, i) => i !== index))
+    setPhotoPreviews(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!user) {
+      setError('You must be logged in')
+      return
+    }
+
+    if (!formData.preferredDate || !formData.preferredTime) {
+      setError('Please pick a date and time slot for your visit')
+      return
+    }
+
+    setIsSubmitting(true)
+    setError(null)
+
+    try {
+      const customerEmail = user.email || formData.contactEmail.trim() || ''
+      const bookingTag = 'PG-' + Math.random().toString(36).substring(2, 6).toUpperCase()
+      const bookingData: any = {
         userId: user.uid,
-        customerName: user.displayName || 'Customer',
-        customerEmail: user.email || '',
+        customerName: user.displayName || user.phoneNumber || user.email || 'Customer',
+        customerEmail,
         customerPhone: user.phoneNumber || '',
-        vinNumber: formData.vinNumber,
-        service: formData.service,
-        otherService: formData.otherService || undefined,
-        description: formData.description,
-        photos: [],
         preferredDate: formData.preferredDate,
         preferredTime: formData.preferredTime,
+        bookingTag,
+        mechanicPreference,
       }
 
-      const result = await createBooking(bookingData, photos)
+      // Only include optional fields if they have values
+      if (formData.description.trim()) {
+        bookingData.description = formData.description.trim()
+      }
+      if (formData.vinNumber.trim()) {
+        bookingData.vinNumber = formData.vinNumber.trim()
+      }
+      if (formData.service) {
+        bookingData.service = formData.service
+      }
+      if (formData.service === 'Other' && formData.otherService.trim()) {
+        bookingData.otherService = formData.otherService.trim()
+      }
+
+      const result = await createBooking(bookingData, photos.length > 0 ? photos : undefined)
 
       if (result.success) {
-        alert('Booking request submitted! We\'ll review it and send you a confirmation email.')
-        router.push('/my-bookings')
+        // Send "request received" email (don't block the redirect if email fails)
+        try {
+          if (bookingData.customerEmail) {
+            const emailHtml = getBookingReceivedEmailHtml({
+              ...bookingData,
+              photos: [],
+              status: 'pending',
+            } as any)
+            await sendBookingEmail(
+              bookingData.customerEmail,
+              "Booking Request Received — Petrol Goons Garage",
+              emailHtml
+            )
+          }
+          // Notify admin team
+          const adminEmailHtml = getNewBookingAdminEmailHtml({
+            ...bookingData,
+            photos: result.photos || [],
+            status: 'pending',
+          } as any)
+          for (const adminEmail of ADMIN_EMAILS) {
+            sendBookingEmail(adminEmail, `New Booking: ${bookingData.customerName} — ${formData.preferredDate}`, adminEmailHtml).catch(() => {})
+          }
+        } catch (emailErr) {
+          console.error('Email sending failed (booking still saved):', emailErr)
+        }
+
+        router.push(`/my-bookings?new=1&tag=${bookingTag}`)
       } else {
-        setError(result.error || 'Failed to submit booking')
+        setError(result.error || 'Something went wrong. Please try again.')
+        // Refresh slots in case someone just took this one
+        if (formData.preferredDate) {
+          const slots = await getBookedSlots(formData.preferredDate)
+          setBookedSlots(slots)
+          setFormData(prev => ({ ...prev, preferredTime: '' }))
+        }
       }
     } catch (err: any) {
-      setError(err.message || 'An error occurred')
+      console.error('Booking error:', err)
+      setError('Something went wrong. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setPhotos(Array.from(e.target.files))
+  const handleSignOut = async () => {
+    try {
+      const { auth } = await import('@/lib/firebase')
+      await signOut(auth)
+    } catch (err) {
+      console.error('Sign out error:', err)
     }
+    window.location.href = '/'
+  }
+
+  // Get today's date for the date picker minimum
+  const today = new Date().toISOString().split('T')[0]
+
+  // Count available slots
+  const availableCount = formData.preferredDate && !selectedDateIsSunday
+    ? ALL_SLOTS.filter(s => !bookedSlots.includes(s) && !isSlotPast(s)).length
+    : 0
+
+  // Loading
+  if (!pageReady || !user) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-petrol-yellow border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white">Loading...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-petrol-black text-white p-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <button
-            onClick={() => router.push('/')}
-            className="flex items-center space-x-2"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <h1 className="text-xl font-bold">
-            <span className="text-petrol-yellow">PETROL GOONS</span> GARAGE
-          </h1>
-          <div className="w-6"></div>
+        <div className="max-w-2xl mx-auto flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <span className="brand-text text-lg">
+              <span className="text-petrol-green">PETROL</span>
+              <span className="inline-block bg-petrol-yellow text-petrol-black px-1.5 py-0 ml-0.5 -skew-x-6 text-base">GOONS</span>
+            </span>
+          </div>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => router.push('/my-bookings')}
+              className="text-petrol-yellow text-sm font-medium hover:underline"
+            >
+              My Bookings
+            </button>
+            <button
+              onClick={handleSignOut}
+              className="bg-petrol-yellow text-black px-4 py-2 rounded-lg font-medium text-sm"
+            >
+              Sign Out
+            </button>
+          </div>
+        </div>
+      </div>
+      <div className="racing-stripe"></div>
+
+      {/* Welcome */}
+      <div className="bg-petrol-black text-white px-4 pb-8">
+        <div className="max-w-2xl mx-auto">
+          <p className="text-gray-400 text-base">Welcome back,</p>
+          <p className="text-xl font-bold">{user.displayName || user.phoneNumber || user.email}</p>
         </div>
       </div>
 
       {/* Form */}
-      <div className="max-w-4xl mx-auto p-4 py-8">
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h2 className="text-2xl font-bold text-petrol-black mb-2">Book a Service</h2>
-          <p className="text-petrol-gray mb-6">Fill in the details below and we'll get back to you</p>
+      <div className="max-w-2xl mx-auto p-4 -mt-4">
+        <div className="bg-white rounded-2xl shadow-lg p-7">
+          <h2 className="text-2xl font-bold text-petrol-black mb-1">Book a Service</h2>
+          <p className="text-petrol-gray text-base mb-6">Pick a date and time — our team will confirm your slot</p>
 
-          {/* Error Message */}
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-4">
               <p className="text-sm">{error}</p>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* VIN Number */}
-            <div>
-              <label htmlFor="vinNumber" className="block text-sm font-medium text-petrol-black mb-2">
-                VIN / Chassis Number *
-              </label>
-              <input
-                type="text"
-                id="vinNumber"
-                required
-                value={formData.vinNumber}
-                onChange={(e) => setFormData({...formData, vinNumber: e.target.value})}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-petrol-yellow focus:border-transparent outline-none"
-                placeholder="Enter your vehicle's VIN or chassis number"
-              />
-            </div>
-
-            {/* Service Selection */}
-            <div>
-              <label htmlFor="service" className="block text-sm font-medium text-petrol-black mb-2">
-                Service Required *
-              </label>
-              <select
-                id="service"
-                required
-                value={formData.service}
-                onChange={(e) => setFormData({...formData, service: e.target.value})}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-petrol-yellow focus:border-transparent outline-none"
-              >
-                <option value="">Select a service</option>
-                {SERVICES.map(service => (
-                  <option key={service} value={service}>{service}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Other Service (if selected) */}
-            {formData.service === 'Other' && (
-              <div>
-                <label htmlFor="otherService" className="block text-sm font-medium text-petrol-black mb-2">
-                  Please specify the service *
+            {/* Email field for phone-auth users (no email on profile) */}
+            {user && !user.email && (
+              <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                <label className="block text-base font-semibold text-petrol-black mb-1.5">
+                  Your email address
                 </label>
                 <input
-                  type="text"
-                  id="otherService"
-                  required
-                  value={formData.otherService}
-                  onChange={(e) => setFormData({...formData, otherService: e.target.value})}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-petrol-yellow focus:border-transparent outline-none"
-                  placeholder="What service do you need?"
+                  type="email"
+                  value={formData.contactEmail}
+                  onChange={(e) => setFormData({...formData, contactEmail: e.target.value})}
+                  className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-petrol-yellow focus:border-petrol-yellow outline-none transition-colors text-petrol-black placeholder-gray-400 bg-white"
+                  placeholder="you@example.com"
                 />
+                <p className="text-sm text-blue-600 mt-1">So we can send you booking updates and confirmations</p>
               </div>
             )}
 
-            {/* Description */}
+            {/* Step 1: Date Picker */}
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-petrol-black mb-2">
-                Issue Description
+              <label className="block text-base font-semibold text-petrol-black mb-1.5">
+                1. Pick a date <span className="text-red-500">*</span>
               </label>
-              <textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({...formData, description: e.target.value})}
-                rows={4}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-petrol-yellow focus:border-transparent outline-none resize-none"
-                placeholder="Tell us more about the issue or any specific requirements..."
+              <input
+                type="date"
+                required
+                value={formData.preferredDate}
+                onChange={(e) => handleDateChange(e.target.value)}
+                min={today}
+                className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-petrol-yellow focus:border-petrol-yellow outline-none transition-colors text-petrol-black"
               />
             </div>
 
-            {/* Photo Upload */}
-            <div>
-              <label className="block text-sm font-medium text-petrol-black mb-2">
-                Photos (Optional)
-              </label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handlePhotoUpload}
-                  className="hidden"
-                  id="photo-upload"
-                />
-                <label htmlFor="photo-upload" className="cursor-pointer">
-                  <svg className="w-12 h-12 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            {/* Sunday message */}
+            {selectedDateIsSunday && (
+              <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+                <div className="flex items-center space-x-2">
+                  <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
                   </svg>
-                  <p className="text-petrol-gray">
-                    <span className="text-petrol-yellow font-medium">Click to upload</span> or drag and drop
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">PNG, JPG up to 10MB</p>
+                  <p className="text-sm font-medium text-orange-800">We're closed on Sundays</p>
+                </div>
+                <p className="text-sm text-orange-600 mt-1">We're open Monday to Saturday, 8 AM — 6 PM. Pick another day!</p>
+              </div>
+            )}
+
+            {/* Step 2: Time Slot Grid */}
+            {formData.preferredDate && !selectedDateIsSunday && (
+              <div>
+                <label className="block text-base font-semibold text-petrol-black mb-1.5">
+                  2. Pick a time slot <span className="text-red-500">*</span>
                 </label>
-                {photos.length > 0 && (
-                  <div className="mt-4 text-sm text-petrol-black">
-                    {photos.length} photo(s) selected
+                <p className="text-sm text-petrol-gray mb-3">
+                  {loadingSlots
+                    ? 'Checking availability...'
+                    : `${availableCount} of ${ALL_SLOTS.length} slots available`
+                  }
+                </p>
+
+                {loadingSlots ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="w-8 h-8 border-3 border-petrol-yellow border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-4 gap-2.5">
+                    {ALL_SLOTS.map((slot) => {
+                      const isBooked = bookedSlots.includes(slot)
+                      const isPast = isSlotPast(slot)
+                      const isSelected = formData.preferredTime === slot
+                      const isDisabled = isBooked || isPast
+
+                      return (
+                        <button
+                          key={slot}
+                          type="button"
+                          disabled={isDisabled}
+                          onClick={() => {
+                            setFormData(prev => ({ ...prev, preferredTime: slot }))
+                            setError(null)
+                          }}
+                          className={`
+                            py-2.5 px-1 rounded-lg text-base font-medium transition-all
+                            ${isSelected
+                              ? 'bg-petrol-yellow text-petrol-black ring-2 ring-petrol-yellow ring-offset-1 shadow-md'
+                              : isDisabled
+                                ? 'bg-gray-100 text-gray-300 cursor-not-allowed line-through'
+                                : 'bg-white border-2 border-gray-200 text-petrol-black hover:border-petrol-yellow hover:bg-yellow-50 active:scale-95'
+                            }
+                          `}
+                        >
+                          {formatSlotTime(slot)}
+                        </button>
+                      )
+                    })}
                   </div>
                 )}
+
+                {/* Legend */}
+                <div className="flex items-center space-x-4 mt-3 text-sm text-petrol-gray">
+                  <div className="flex items-center space-x-1">
+                    <div className="w-3 h-3 rounded border-2 border-gray-200 bg-white"></div>
+                    <span>Available</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <div className="w-3 h-3 rounded bg-petrol-yellow"></div>
+                    <span>Selected</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <div className="w-3 h-3 rounded bg-gray-100"></div>
+                    <span>Taken</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Mechanic Preference */}
+            <div>
+              <label className="block text-base font-semibold text-petrol-black mb-1.5">
+                3. Mechanic preference
+              </label>
+              <p className="text-sm text-petrol-gray mb-3">Choose a specific mechanic or let us assign one for you</p>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                {/* Garage Assigns - full width */}
+                <button
+                  type="button"
+                  onClick={() => setMechanicPreference('garage-assigns')}
+                  className={`
+                    col-span-2 rounded-xl p-4 border-2 text-left flex items-center space-x-3 transition-all
+                    ${mechanicPreference === 'garage-assigns'
+                      ? 'border-petrol-yellow bg-yellow-50'
+                      : 'border-gray-200 bg-white hover:border-gray-300'
+                    }
+                  `}
+                >
+                  {/* Wrench icon */}
+                  <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${mechanicPreference === 'garage-assigns' ? 'bg-petrol-yellow' : 'bg-gray-100'}`}>
+                    <svg className={`w-5 h-5 ${mechanicPreference === 'garage-assigns' ? 'text-petrol-black' : 'text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-base font-semibold text-petrol-black">Let the garage assign</p>
+                    <p className="text-sm text-petrol-gray">We'll pick the best available mechanic</p>
+                  </div>
+                  {mechanicPreference === 'garage-assigns' && (
+                    <svg className="w-6 h-6 text-petrol-yellow flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                    </svg>
+                  )}
+                </button>
+
+                {/* Individual mechanics */}
+                {MECHANICS.map((mechanic) => (
+                  <button
+                    key={mechanic.id}
+                    type="button"
+                    onClick={() => setMechanicPreference(mechanic.id)}
+                    className={`
+                      rounded-xl p-4 border-2 text-left flex items-center space-x-3 transition-all
+                      ${mechanicPreference === mechanic.id
+                        ? 'border-petrol-yellow bg-yellow-50'
+                        : 'border-gray-200 bg-white hover:border-gray-300'
+                      }
+                    `}
+                  >
+                    <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${mechanicPreference === mechanic.id ? 'bg-petrol-yellow' : 'bg-gray-100'}`}>
+                      <svg className={`w-5 h-5 ${mechanicPreference === mechanic.id ? 'text-petrol-black' : 'text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                    <p className="text-base font-semibold text-petrol-black flex-1">{mechanic.name}</p>
+                    {mechanicPreference === mechanic.id && (
+                      <svg className="w-6 h-6 text-petrol-yellow flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* Date and Time */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="preferredDate" className="block text-sm font-medium text-petrol-black mb-2">
-                  Preferred Date *
-                </label>
-                <input
-                  type="date"
-                  id="preferredDate"
-                  required
-                  value={formData.preferredDate}
-                  onChange={(e) => setFormData({...formData, preferredDate: e.target.value})}
-                  min={new Date().toISOString().split('T')[0]}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-petrol-yellow focus:border-transparent outline-none"
-                />
-              </div>
-              <div>
-                <label htmlFor="preferredTime" className="block text-sm font-medium text-petrol-black mb-2">
-                  Preferred Time *
-                </label>
-                <input
-                  type="time"
-                  id="preferredTime"
-                  required
-                  value={formData.preferredTime}
-                  onChange={(e) => setFormData({...formData, preferredTime: e.target.value})}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-petrol-yellow focus:border-transparent outline-none"
-                />
-              </div>
+            {/* Description - optional but prominent */}
+            <div>
+              <label className="block text-base font-semibold text-petrol-black mb-1.5">
+                What do you need help with?
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData({...formData, description: e.target.value})}
+                rows={3}
+                className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-petrol-yellow focus:border-petrol-yellow outline-none resize-none transition-colors text-base text-petrol-black placeholder-gray-400"
+                placeholder="e.g. My car is making a weird noise when braking..."
+              />
+              <p className="text-sm text-petrol-gray mt-1">Optional — you can also explain when you visit</p>
             </div>
 
-            {/* Submit Button */}
+            {/* Expandable: More Details */}
+            <div className="border-2 border-gray-100 rounded-xl overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setShowMoreDetails(!showMoreDetails)}
+                className="w-full px-4 py-4 flex items-center justify-between text-base font-medium text-petrol-gray hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center space-x-2">
+                  <svg className={`w-4 h-4 transition-transform duration-200 ${showMoreDetails ? 'rotate-45' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  <span>Add more details</span>
+                  <span className="text-sm text-petrol-gray font-normal">(VIN, service type)</span>
+                </div>
+                <svg
+                  className={`w-5 h-5 transition-transform duration-200 ${showMoreDetails ? 'rotate-180' : ''}`}
+                  fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {showMoreDetails && (
+                <div className="px-4 pb-4 space-y-4 border-t border-gray-100 pt-4">
+                  {/* VIN */}
+                  <div>
+                    <label className="block text-base font-semibold text-petrol-black mb-1.5">
+                      VIN / Chassis Number
+                    </label>
+                    {savedCars.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {savedCars.map((car) => (
+                          <button
+                            key={car}
+                            type="button"
+                            onClick={() => setFormData({...formData, vinNumber: car})}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                              formData.vinNumber === car
+                                ? 'bg-petrol-yellow text-petrol-black'
+                                : 'bg-gray-100 text-petrol-gray hover:bg-gray-200'
+                            }`}
+                          >
+                            {car}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <input
+                      type="text"
+                      value={formData.vinNumber}
+                      onChange={(e) => setFormData({...formData, vinNumber: e.target.value})}
+                      className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-petrol-yellow focus:border-petrol-yellow outline-none transition-colors text-petrol-black placeholder-gray-400"
+                      placeholder={savedCars.length > 0 ? 'Tap above or type a new VIN' : 'Found on your logbook or windshield'}
+                    />
+                    <p className="text-sm text-petrol-gray mt-1">{savedCars.length > 0 ? 'Your saved vehicles are shown above' : 'Helps us pull up your car\'s service history'}</p>
+                  </div>
+
+                  {/* Service */}
+                  <div>
+                    <label className="block text-base font-semibold text-petrol-black mb-1.5">
+                      Service Type
+                    </label>
+                    <select
+                      value={formData.service}
+                      onChange={(e) => setFormData({...formData, service: e.target.value})}
+                      className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-petrol-yellow focus:border-petrol-yellow outline-none bg-white transition-colors text-petrol-black"
+                    >
+                      <option value="">Not sure yet</option>
+                      {SERVICES.map(service => (
+                        <option key={service} value={service}>{service}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Other Service */}
+                  {formData.service === 'Other' && (
+                    <div>
+                      <label className="block text-base font-semibold text-petrol-black mb-1.5">
+                        Tell us more
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.otherService}
+                        onChange={(e) => setFormData({...formData, otherService: e.target.value})}
+                        className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-petrol-yellow focus:border-petrol-yellow outline-none transition-colors text-petrol-black placeholder-gray-400"
+                        placeholder="What service do you need?"
+                      />
+                    </div>
+                  )}
+
+                  {/* Photo Upload */}
+                  <div>
+                    <label className="block text-base font-semibold text-petrol-black mb-1.5">
+                      Photos of the issue
+                    </label>
+                    <p className="text-sm text-petrol-gray mb-3">Up to 5 photos, max 5MB each</p>
+
+                    {/* Photo previews */}
+                    {photoPreviews.length > 0 && (
+                      <div className="grid grid-cols-3 gap-2 mb-3">
+                        {photoPreviews.map((preview, index) => (
+                          <div key={index} className="relative aspect-square rounded-lg overflow-hidden border-2 border-gray-200">
+                            <img src={preview} alt={`Photo ${index + 1}`} className="w-full h-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => handlePhotoRemove(index)}
+                              className="absolute top-1 right-1 w-6 h-6 bg-black bg-opacity-60 rounded-full flex items-center justify-center text-white hover:bg-opacity-80"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Upload button */}
+                    {photos.length < 5 && (
+                      <label className="flex items-center justify-center w-full py-4 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-petrol-yellow hover:bg-yellow-50 transition-colors">
+                        <div className="flex items-center space-x-2 text-petrol-gray">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          <span className="text-sm font-medium">
+                            {photos.length === 0 ? 'Add photos' : `Add more (${photos.length}/5)`}
+                          </span>
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={handlePhotoAdd}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Submit */}
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="w-full bg-petrol-yellow text-petrol-black font-bold py-4 rounded-lg hover:bg-yellow-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isSubmitting || !formData.preferredDate || !formData.preferredTime || selectedDateIsSunday}
+              className="w-full bg-petrol-green text-petrol-black font-bold py-5 rounded-xl hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-xl shadow-md hover:shadow-lg active:scale-[0.98]"
             >
-              {isSubmitting ? 'Submitting...' : 'Submit Booking Request'}
+              {isSubmitting ? (
+                <span className="flex items-center justify-center space-x-2">
+                  <span className="w-5 h-5 border-2 border-petrol-black border-t-transparent rounded-full animate-spin"></span>
+                  <span>{photos.length > 0 ? 'Uploading photos & booking...' : 'Booking...'}</span>
+                </span>
+              ) : formData.preferredTime ? (
+                `Book for ${formatSlotTime(formData.preferredTime)}`
+              ) : (
+                'Pick a time slot above'
+              )}
             </button>
           </form>
+        </div>
+
+        {/* Quick note */}
+        <p className="text-center text-sm text-petrol-gray mt-4 px-4 pb-24">
+          Our team reviews every booking and confirms within a few hours. No payment until after service.
+        </p>
+      </div>
+
+      {/* Bottom Navigation */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 safe-area-bottom z-40">
+        <div className="max-w-2xl mx-auto flex">
+          <button
+            className="flex-1 flex flex-col items-center py-3 text-petrol-green"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            <span className="text-xs font-semibold mt-0.5">Book</span>
+          </button>
+          <button
+            onClick={() => router.push('/my-bookings')}
+            className="flex-1 flex flex-col items-center py-3 text-gray-400"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+            </svg>
+            <span className="text-xs font-medium mt-0.5">My Bookings</span>
+          </button>
+          <button
+            onClick={handleSignOut}
+            className="flex-1 flex flex-col items-center py-3 text-gray-400"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            <span className="text-xs font-medium mt-0.5">Sign Out</span>
+          </button>
         </div>
       </div>
     </div>

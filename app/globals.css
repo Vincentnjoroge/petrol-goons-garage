@@ -16,3 +16,51 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* Racing stripe accent bar — used on headers */
+.racing-stripe {
+  height: 4px;
+  background: linear-gradient(
+    90deg,
+    #ffffff 0%,
+    #ffffff 20%,
+    #C41E3A 20%,
+    #C41E3A 40%,
+    #1B2A4A 40%,
+    #1B2A4A 60%,
+    #FDB913 60%,
+    #FDB913 80%,
+    #00B4D8 80%,
+    #00B4D8 100%
+  );
+}
+
+/* Diagonal racing stripe (like the logo) */
+.racing-stripe-diagonal {
+  height: 6px;
+  background: linear-gradient(
+    -5deg,
+    #ffffff 0%,
+    #ffffff 20%,
+    #C41E3A 20%,
+    #C41E3A 40%,
+    #1B2A4A 40%,
+    #1B2A4A 60%,
+    #FDB913 60%,
+    #FDB913 80%,
+    #00B4D8 80%,
+    #00B4D8 100%
+  );
+}
+
+/* Brand text style — italic bold like the logo */
+.brand-text {
+  font-style: italic;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+/* Safe area bottom padding for bottom nav on notched phones */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
