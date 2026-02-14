@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from 'next'
+import { Analytics } from '@vercel/analytics/react'
 import './globals.css'
 import NetworkStatus from './components/NetworkStatus'
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://petrol-goons-garage.vercel.app'),
   title: 'Petrol Goons Garage — Book Your Car Service',
   description: 'Book your car service in 30 seconds. Oil change, brakes, suspension, diagnostics & more. No upfront payment. Nairobi\'s car culture, refined.',
   keywords: ['car service', 'garage', 'Nairobi', 'Kenya', 'oil change', 'brake pads', 'car mechanic', 'book mechanic', 'petrol goons'],
@@ -51,6 +53,7 @@ export default function RootLayout({
       <body className="antialiased">
         <NetworkStatus />
         {children}
+        <Analytics />
       </body>
     </html>
   )

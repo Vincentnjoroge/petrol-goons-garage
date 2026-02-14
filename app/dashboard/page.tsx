@@ -9,6 +9,7 @@ import { sendBookingEmail, getBookingConfirmationEmailHtml, getBookingRejectionE
 import { isAdmin } from '@/lib/admin'
 
 type FilterTab = 'upcoming' | 'completed' | 'cancelled' | 'all'
+type SortOption = 'date-desc' | 'date-asc' | 'name-asc' | 'name-desc'
 
 const MECHANICS = [
   { id: 'mike-d', name: 'Mike D' },
@@ -39,6 +40,8 @@ export default function DashboardPage() {
   const [savingReschedule, setSavingReschedule] = useState(false)
   // Mechanic assignment state
   const [assigningMechanicId, setAssigningMechanicId] = useState<string | null>(null)
+  // Sort state
+  const [sortBy, setSortBy] = useState<SortOption>('date-desc')
 
   // Auth check with timeout — dynamic import of auth
   useEffect(() => {
@@ -295,7 +298,50 @@ export default function DashboardPage() {
       b.preferredDate?.includes(searchLower) ||
       b.bookingTag?.toLowerCase().includes(searchLower)
     )
+  }).sort((a, b) => {
+    switch (sortBy) {
+      case 'date-asc':
+        return (a.preferredDate + a.preferredTime).localeCompare(b.preferredDate + b.preferredTime)
+      case 'date-desc':
+        return (b.preferredDate + b.preferredTime).localeCompare(a.preferredDate + a.preferredTime)
+      case 'name-asc':
+        return (a.customerName || '').localeCompare(b.customerName || '')
+      case 'name-desc':
+        return (b.customerName || '').localeCompare(a.customerName || '')
+      default:
+        return 0
+    }
   })
+
+  // CSV Export
+  const handleExportCSV = () => {
+    const headers = ['Tag', 'Date', 'Time', 'Customer', 'Email', 'Phone', 'Service', 'VIN', 'Mechanic', 'Status', 'Notes']
+    const rows = filteredBookings.map(b => [
+      b.bookingTag || '',
+      b.preferredDate,
+      formatTime(b.preferredTime),
+      b.customerName || '',
+      b.customerEmail || '',
+      b.customerPhone || '',
+      b.service ? (b.service + (b.otherService ? ': ' + b.otherService : '')) : '',
+      b.vinNumber || '',
+      b.mechanicPreference && b.mechanicPreference !== 'garage-assigns' ? getMechanicName(b.mechanicPreference) : '',
+      b.status,
+      (b as any).serviceNotes || '',
+    ])
+
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `petrol-goons-bookings-${new Date().toISOString().split('T')[0]}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
 
   // Counts
   const upcomingCount = bookings.filter(b => ['confirmed', 'approved', 'pending'].includes(b.status)).length
@@ -434,6 +480,33 @@ export default function DashboardPage() {
               </button>
             )}
           </div>
+        </div>
+
+        {/* Sort & Export Bar */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-2">
+            <label className="text-sm text-gray-500 font-medium">Sort:</label>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortOption)}
+              className="text-sm bg-white border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 outline-none shadow-sm"
+            >
+              <option value="date-desc">Newest first</option>
+              <option value="date-asc">Oldest first</option>
+              <option value="name-asc">Name A-Z</option>
+              <option value="name-desc">Name Z-A</option>
+            </select>
+          </div>
+          <button
+            onClick={handleExportCSV}
+            disabled={filteredBookings.length === 0}
+            className="flex items-center space-x-1.5 text-sm font-medium bg-white border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span>Export CSV</span>
+          </button>
         </div>
 
         {/* Filter Tabs */}
