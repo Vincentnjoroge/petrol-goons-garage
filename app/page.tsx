@@ -77,14 +77,13 @@ export default function LandingPage() {
   // Loading splash
   if (checkingAuth) {
     return (
-      <div className="min-h-screen bg-petrol-black flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-5xl brand-text mb-1">
-            <span className="text-petrol-green">PETROL</span>
-            <span className="inline-block bg-petrol-yellow text-petrol-black px-3 py-0.5 ml-1 -skew-x-6">GOONS</span>
+      <div className="min-h-screen bg-petrol-black flex items-center justify-center px-10">
+        <div className="text-center w-full max-w-xs">
+          <h1 className="text-4xl sm:text-5xl brand-text mb-1 whitespace-nowrap">
+            <span className="text-petrol-green">PETROL</span>{' '}
+            <span className="inline-block bg-petrol-yellow text-petrol-black px-3 py-0.5 -skew-x-6">GOONS</span>
           </h1>
-          <p className="text-petrol-yellow text-sm tracking-[0.3em] font-semibold mt-3">TUNERSHOP</p>
-          <div className="w-56 mx-auto mt-4 racing-stripe rounded-full overflow-hidden"></div>
+          <div className="w-40 mx-auto mt-5 racing-stripe-diagonal rounded-sm overflow-hidden"></div>
           <div className="w-8 h-8 border-4 border-petrol-green border-t-transparent rounded-full animate-spin mx-auto mt-6"></div>
         </div>
       </div>
@@ -93,42 +92,39 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-petrol-black">
-      {/* Racing stripe top accent */}
-      <div className="racing-stripe"></div>
-
       <div className="relative overflow-hidden">
         {/* Subtle green glow */}
         <div className="absolute top-10 left-1/2 -translate-x-1/2 w-80 h-80 bg-petrol-green opacity-[0.03] rounded-full blur-3xl"></div>
 
-        <div className="relative max-w-lg mx-auto px-6 pt-12 pb-10">
+        <div className="relative max-w-lg mx-auto px-6 pt-10 pb-10">
 
           {/* ===== LOGO ===== */}
-          <div className="text-center mb-8">
-            <h1 className="text-5xl sm:text-6xl brand-text mb-1">
-              <span className="text-petrol-green">PETROL</span>
-              <span className="inline-block bg-petrol-yellow text-petrol-black px-3 py-0.5 ml-1 -skew-x-6">GOONS</span>
+          <div className="text-center mb-10">
+            <h1 className="text-4xl sm:text-5xl brand-text mb-2 whitespace-nowrap">
+              <span className="text-petrol-green">PETROL</span>{' '}
+              <span className="inline-block bg-petrol-yellow text-petrol-black px-3 py-0.5 -skew-x-6">GOONS</span>
             </h1>
-            <p className="text-petrol-yellow text-sm tracking-[0.3em] font-semibold mt-2">TUNERSHOP</p>
-            <div className="w-56 mx-auto mt-3 racing-stripe-diagonal rounded-sm overflow-hidden"></div>
+            <p className="text-gray-500 text-sm tracking-[0.2em] font-medium uppercase mt-1">Garage</p>
+            <div className="w-40 mx-auto mt-3 racing-stripe-diagonal rounded-sm overflow-hidden"></div>
           </div>
 
           {/* ===== HERO SECTION ===== */}
-          <div className="text-center mb-8">
-            <h2 className="text-3xl sm:text-4xl font-bold text-white leading-tight mb-3">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl sm:text-4xl font-bold text-white leading-tight mb-4">
               Kenya&apos;s Smart<br />
               <span className="text-petrol-green">Garage Experience</span>
             </h2>
-            <p className="text-gray-400 text-lg leading-relaxed mb-2">
+            <p className="text-gray-400 text-lg leading-relaxed mb-3">
               Book. Track. Approve. Drive.
             </p>
-            <p className="text-gray-500 text-base">
+            <p className="text-gray-500 text-base leading-relaxed">
               No waiting. No surprises. No upfront payment.<br />
               Just transparent, tech-powered car care.
             </p>
           </div>
 
           {/* ===== PRIMARY CTA ===== */}
-          <div className="mb-10 space-y-3">
+          <div className="mb-12 space-y-4">
             <button
               onClick={handleBookNow}
               className="w-full bg-petrol-green text-petrol-black font-bold py-5 rounded-xl hover:brightness-110 transition-all text-xl shadow-lg hover:shadow-xl active:scale-[0.98]"
@@ -146,7 +142,7 @@ export default function LandingPage() {
           </div>
 
           {/* ===== TRUST STRIP ===== */}
-          <div className="bg-white bg-opacity-[0.04] rounded-2xl p-5 mb-12 border border-white border-opacity-5">
+          <div className="bg-white bg-opacity-[0.04] rounded-2xl p-6 mb-14 border border-white border-opacity-5">
             <div className="grid grid-cols-2 gap-4 text-center">
               <div className="flex flex-col items-center">
                 <div className="text-petrol-yellow text-lg mb-0.5">★★★★★</div>
@@ -172,7 +168,7 @@ export default function LandingPage() {
           </div>
 
           {/* ===== HOW IT WORKS ===== */}
-          <div id="how-it-works" className="mb-12">
+          <div id="how-it-works" className="mb-14">
             <p className="text-gray-500 text-sm uppercase tracking-wider font-semibold mb-6 text-center">How It Works</p>
 
             <div className="space-y-4">
@@ -218,7 +214,7 @@ export default function LandingPage() {
           </div>
 
           {/* ===== WHY DRIVERS CHOOSE US (Outcome-focused) ===== */}
-          <div className="mb-12">
+          <div className="mb-14">
             <p className="text-gray-500 text-sm uppercase tracking-wider font-semibold mb-6 text-center">Why Drivers Choose Petrol Goons</p>
 
             <div className="grid grid-cols-1 gap-3">
@@ -274,7 +270,7 @@ export default function LandingPage() {
           </div>
 
           {/* ===== PAY AFTER SERVICE HERO BADGE ===== */}
-          <div className="mb-12 bg-gradient-to-br from-petrol-green/20 to-petrol-green/5 border-2 border-petrol-green/30 rounded-2xl p-6 text-center">
+          <div className="mb-14 bg-gradient-to-br from-petrol-green/20 to-petrol-green/5 border-2 border-petrol-green/30 rounded-2xl p-7 text-center">
             <div className="w-16 h-16 bg-petrol-green rounded-full flex items-center justify-center mx-auto mb-3">
               <svg className="w-8 h-8 text-petrol-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
@@ -288,7 +284,7 @@ export default function LandingPage() {
           </div>
 
           {/* ===== INTERACTIVE SERVICES ===== */}
-          <div className="mb-12">
+          <div className="mb-14">
             <p className="text-gray-500 text-sm uppercase tracking-wider font-semibold mb-2 text-center">Our Services</p>
             <p className="text-gray-600 text-sm text-center mb-6">Tap any service for details and pricing</p>
 
@@ -345,7 +341,7 @@ export default function LandingPage() {
           </div>
 
           {/* ===== SECOND CTA ===== */}
-          <div className="mb-12">
+          <div className="mb-14">
             <button
               onClick={handleBookNow}
               className="w-full bg-petrol-green text-petrol-black font-bold py-5 rounded-xl hover:brightness-110 transition-all text-xl shadow-lg hover:shadow-xl active:scale-[0.98]"
@@ -355,8 +351,8 @@ export default function LandingPage() {
           </div>
 
           {/* ===== HOURS & LOCATION ===== */}
-          <div className="pt-6 border-t border-white border-opacity-5">
-            <div className="grid grid-cols-2 gap-6 text-center">
+          <div className="pt-8 border-t border-white border-opacity-5">
+            <div className="grid grid-cols-2 gap-8 text-center">
               <div>
                 <p className="text-gray-500 text-sm uppercase tracking-wider font-semibold mb-2">Hours</p>
                 <p className="text-white text-base font-medium">Mon — Sat</p>
@@ -382,10 +378,10 @@ export default function LandingPage() {
           </div>
 
           {/* ===== FOOTER ===== */}
-          <div className="text-center mt-8 pb-6">
-            <div className="w-full racing-stripe mb-6 rounded-full overflow-hidden"></div>
+          <div className="text-center mt-10 pb-8">
+            <div className="w-full racing-stripe-diagonal mb-6 rounded-sm overflow-hidden"></div>
             <p className="text-gray-700 text-sm">
-              &copy; 2026 Petrol Goons Tunershop. Built for Kenya&apos;s car community.
+              &copy; 2026 Petrol Goons Garage. Built for Kenya&apos;s car community.
             </p>
           </div>
         </div>

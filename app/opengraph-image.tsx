@@ -78,13 +78,14 @@ export default async function Image() {
         <div
           style={{
             fontSize: '20px',
-            color: '#FDB913',
-            letterSpacing: '0.3em',
-            fontWeight: 600,
+            color: '#9CA3AF',
+            letterSpacing: '0.2em',
+            fontWeight: 500,
             marginBottom: '40px',
+            textTransform: 'uppercase',
           }}
         >
-          TUNERSHOP
+          GARAGE
         </div>
 
         {/* CTA */}
