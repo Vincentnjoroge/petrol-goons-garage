@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og'
 
 export const runtime = 'edge'
-export const alt = 'Petrol Goons Garage — Book Your Car Service'
+export const alt = 'Petrol Goons OS — The Operating System for Modern Garages'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
@@ -85,7 +85,7 @@ export default async function Image() {
             textTransform: 'uppercase',
           }}
         >
-          GARAGE
+          OS
         </div>
 
         {/* CTA */}
@@ -99,7 +99,7 @@ export default async function Image() {
             marginBottom: '16px',
           }}
         >
-          Book your car service in 30 seconds
+          The Operating System for Modern Garages
         </div>
 
         <div
@@ -109,7 +109,7 @@ export default async function Image() {
             textAlign: 'center',
           }}
         >
-          Oil change · Brakes · Suspension · Diagnostics · Detailing & more
+          Bookings · Job Tracking · Records · Revenue — All in One Platform
         </div>
 
         {/* Bottom bar */}

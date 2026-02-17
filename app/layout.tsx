@@ -5,22 +5,22 @@ import NetworkStatus from './components/NetworkStatus'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://petrol-goons-garage.vercel.app'),
-  title: 'Petrol Goons Garage — Book Your Car Service',
-  description: 'Book your car service in 30 seconds. Oil change, brakes, suspension, diagnostics & more. No upfront payment. Nairobi\'s car culture, refined.',
-  keywords: ['car service', 'garage', 'Nairobi', 'Kenya', 'oil change', 'brake pads', 'car mechanic', 'book mechanic', 'petrol goons'],
-  authors: [{ name: 'Petrol Goons Garage' }],
+  title: 'Petrol Goons OS — The Operating System for Modern Garages',
+  description: 'Run your garage like a performance machine. Digital bookings, job tracking, customer records, and revenue tools — all in one platform. Built for Kenya.',
+  keywords: ['garage management', 'garage software', 'Kenya', 'Nairobi', 'booking system', 'car service', 'SaaS', 'petrol goons', 'garage platform'],
+  authors: [{ name: 'Petrol Goons' }],
   openGraph: {
-    title: 'Petrol Goons Garage — Book Your Car Service',
-    description: 'Book your car service in 30 seconds. No more showing up and waiting. Book ahead, we prep everything, you drive in and out.',
+    title: 'Petrol Goons OS — The Operating System for Modern Garages',
+    description: 'Manage bookings, track jobs, store records, and increase revenue. Built for Kenya\'s next generation of garages.',
     url: 'https://petrol-goons-garage.vercel.app',
-    siteName: 'Petrol Goons Garage',
+    siteName: 'Petrol Goons OS',
     locale: 'en_KE',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Petrol Goons Garage — Book Your Car Service',
-    description: 'Book your car service in 30 seconds. Oil change, brakes, suspension, diagnostics & more.',
+    title: 'Petrol Goons OS — The Operating System for Modern Garages',
+    description: 'Digital bookings, job tracking, customer records & revenue tools. Powering Kenya\'s modern garages.',
   },
   manifest: '/manifest.json',
   robots: {
