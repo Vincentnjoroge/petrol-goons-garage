@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   onAuthStateChanged,
   getRedirectResult,
@@ -72,48 +72,146 @@ const PLANS = [
   },
 ]
 
-// Fuel pump toggle component
+// 3D Fuel pump toggle component
 function FuelPumpToggle({ isGarage, onToggle }: { isGarage: boolean; onToggle: () => void }) {
-  return (
-    <div className="flex items-center justify-center mb-10">
-      <div className="bg-white bg-opacity-[0.06] rounded-2xl p-2 border border-white border-opacity-10 flex items-center space-x-2">
-        {/* Customer label */}
-        <span className={`text-sm font-semibold px-3 py-1 transition-colors duration-300 ${!isGarage ? 'text-petrol-green' : 'text-gray-500'}`}>
-          I need a service
-        </span>
+  const [justToggled, setJustToggled] = useState(false)
+  const [dripActive, setDripActive] = useState(false)
 
-        {/* Toggle track */}
+  const handleToggle = () => {
+    setJustToggled(true)
+    setDripActive(true)
+    onToggle()
+    // Reset bounce
+    setTimeout(() => setJustToggled(false), 400)
+    // Reset drip
+    setTimeout(() => setDripActive(false), 800)
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-center mb-10">
+      {/* Toggle container with 3D perspective */}
+      <div
+        className="toggle-3d-container bg-white/[0.06] rounded-2xl p-3 border border-white/10 flex items-center space-x-3"
+        style={{ perspective: '600px' }}
+      >
+        {/* Customer label */}
         <button
-          onClick={onToggle}
-          className="relative w-[72px] h-9 rounded-full bg-petrol-black border-2 border-petrol-yellow/40 transition-all duration-300 hover:border-petrol-yellow/70 focus:outline-none active:scale-95"
+          onClick={() => isGarage && handleToggle()}
+          className={`text-sm font-semibold px-3 py-1.5 rounded-lg transition-all duration-300 ${
+            !isGarage
+              ? 'text-petrol-green bg-petrol-green/10'
+              : 'text-gray-500 hover:text-gray-400'
+          }`}
+        >
+          <span className="flex items-center space-x-1.5">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+            <span>I need a service</span>
+          </span>
+        </button>
+
+        {/* 3D Toggle track */}
+        <button
+          onClick={handleToggle}
+          className={`toggle-track relative w-[76px] h-10 rounded-full focus:outline-none transition-all duration-500 ${
+            justToggled ? 'toggle-bounce' : ''
+          }`}
+          style={{
+            background: 'linear-gradient(180deg, #0A0A0A 0%, #1a1a1a 100%)',
+            boxShadow: isGarage
+              ? '0 0 20px rgba(253,185,19,0.2), inset 0 2px 4px rgba(0,0,0,0.6), inset 0 -1px 2px rgba(255,255,255,0.05)'
+              : '0 0 20px rgba(57,255,20,0.2), inset 0 2px 4px rgba(0,0,0,0.6), inset 0 -1px 2px rgba(255,255,255,0.05)',
+            border: `2px solid ${isGarage ? 'rgba(253,185,19,0.5)' : 'rgba(57,255,20,0.5)'}`,
+          }}
           aria-label="Toggle between customer and garage owner view"
         >
-          {/* Track fill */}
-          <div className={`absolute inset-0 rounded-full transition-all duration-500 ${isGarage ? 'bg-petrol-yellow/20' : 'bg-petrol-green/20'}`} />
-
-          {/* Fuel pump knob */}
+          {/* Track inner glow */}
           <div
-            className={`absolute top-0.5 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300 ease-out ${
-              isGarage ? 'left-[calc(100%-30px)] bg-petrol-yellow' : 'left-0.5 bg-petrol-green'
+            className="absolute inset-1 rounded-full transition-all duration-500"
+            style={{
+              background: isGarage
+                ? 'linear-gradient(90deg, transparent 20%, rgba(253,185,19,0.08) 100%)'
+                : 'linear-gradient(90deg, rgba(57,255,20,0.08) 0%, transparent 80%)',
+            }}
+          />
+
+          {/* Track markers */}
+          <div className="absolute inset-0 flex items-center justify-between px-3 pointer-events-none">
+            <div className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${!isGarage ? 'bg-petrol-green/50 scale-0' : 'bg-white/10 scale-100'}`} />
+            <div className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${isGarage ? 'bg-petrol-yellow/50 scale-0' : 'bg-white/10 scale-100'}`} />
+          </div>
+
+          {/* 3D Fuel pump knob */}
+          <div
+            className={`absolute top-[3px] w-8 h-8 rounded-full flex items-center justify-center transition-all duration-400 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+              isGarage ? 'left-[calc(100%-35px)]' : 'left-[3px]'
             }`}
+            style={{
+              background: isGarage
+                ? 'linear-gradient(145deg, #FDB913, #e5a711)'
+                : 'linear-gradient(145deg, #39FF14, #2ecc0f)',
+              boxShadow: isGarage
+                ? '0 2px 8px rgba(253,185,19,0.5), 0 0 16px rgba(253,185,19,0.2), inset 0 1px 1px rgba(255,255,255,0.3), inset 0 -1px 1px rgba(0,0,0,0.2)'
+                : '0 2px 8px rgba(57,255,20,0.5), 0 0 16px rgba(57,255,20,0.2), inset 0 1px 1px rgba(255,255,255,0.3), inset 0 -1px 1px rgba(0,0,0,0.2)',
+              transform: justToggled ? 'scale(1.15)' : 'scale(1)',
+            }}
           >
-            {/* Fuel pump SVG */}
+            {/* Fuel pump SVG with rotation */}
             <svg
-              className={`w-4 h-4 transition-transform duration-300 ${isGarage ? 'rotate-0' : 'rotate-0'}`}
+              className="w-4 h-4 transition-transform duration-500"
+              style={{ transform: isGarage ? 'rotate(0deg)' : 'rotate(-15deg)' }}
               viewBox="0 0 24 24"
               fill="currentColor"
               xmlns="http://www.w3.org/2000/svg"
             >
               <path d="M19.77 7.23l.01-.01-3.72-3.72L15 4.56l2.11 2.11c-.94.36-1.61 1.26-1.61 2.33 0 1.38 1.12 2.5 2.5 2.5.36 0 .69-.08 1-.21v7.21c0 .55-.45 1-1 1s-1-.45-1-1V14c0-1.1-.9-2-2-2h-1V5c0-1.1-.9-2-2-2H6c-1.1 0-2 .9-2 2v16h10v-7.5h1.5v5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V9c0-.69-.28-1.32-.73-1.77zM12 13.5V19H6v-7h6v1.5zm0-3.5H6V5h6v5z" fill="#0A0A0A"/>
             </svg>
+
+            {/* Pulse ring */}
+            <div
+              className={`absolute inset-0 rounded-full transition-opacity duration-300 ${justToggled ? 'toggle-pulse' : 'opacity-0'}`}
+              style={{
+                border: `2px solid ${isGarage ? '#FDB913' : '#39FF14'}`,
+              }}
+            />
           </div>
+
+          {/* Fuel drip animation */}
+          {dripActive && (
+            <div
+              className="fuel-drip absolute"
+              style={{
+                left: isGarage ? 'calc(100% - 22px)' : '14px',
+                bottom: '-4px',
+                width: '4px',
+                height: '4px',
+                borderRadius: '50% 50% 50% 0',
+                transform: 'rotate(45deg)',
+                background: isGarage ? '#FDB913' : '#39FF14',
+              }}
+            />
+          )}
         </button>
 
         {/* Garage label */}
-        <span className={`text-sm font-semibold px-3 py-1 transition-colors duration-300 ${isGarage ? 'text-petrol-yellow' : 'text-gray-500'}`}>
-          I run a garage
-        </span>
+        <button
+          onClick={() => !isGarage && handleToggle()}
+          className={`text-sm font-semibold px-3 py-1.5 rounded-lg transition-all duration-300 ${
+            isGarage
+              ? 'text-petrol-yellow bg-petrol-yellow/10'
+              : 'text-gray-500 hover:text-gray-400'
+          }`}
+        >
+          <span className="flex items-center space-x-1.5">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+            <span>I run a garage</span>
+          </span>
+        </button>
       </div>
+
+      {/* Toggle hint text */}
+      <p className={`text-xs mt-3 transition-all duration-300 ${isGarage ? 'text-petrol-yellow/40' : 'text-petrol-green/40'}`}>
+        Tap to switch view
+      </p>
     </div>
   )
 }
@@ -576,8 +674,29 @@ export default function LandingPage() {
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [isGarageView, setIsGarageView] = useState(false)
   const [expandedService, setExpandedService] = useState<string | null>(null)
+  const [isTransitioning, setIsTransitioning] = useState(false)
+  const [displayView, setDisplayView] = useState<'customer' | 'garage'>('customer')
+  const contentRef = useRef<HTMLDivElement>(null)
 
   const goToBooking = () => { window.location.href = '/book' }
+
+  // Smooth view transition handler
+  const handleToggle = () => {
+    if (isTransitioning) return
+    setIsTransitioning(true)
+
+    // Phase 1: Fade out + slide current view
+    setTimeout(() => {
+      setDisplayView(isGarageView ? 'customer' : 'garage')
+      setIsGarageView(!isGarageView)
+      // Phase 2: New view fades in
+      setTimeout(() => {
+        setIsTransitioning(false)
+        // Scroll to top of content smoothly
+        contentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 50)
+    }, 250)
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -635,7 +754,15 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-petrol-black">
       <div className="relative overflow-hidden">
-        <div className="absolute top-10 left-1/2 -translate-x-1/2 w-80 h-80 bg-petrol-green opacity-[0.03] rounded-full blur-3xl"></div>
+        {/* Ambient glow shifts color based on active view */}
+        <div
+          className="absolute top-10 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full blur-3xl transition-all duration-700"
+          style={{
+            background: isGarageView
+              ? 'radial-gradient(circle, rgba(253,185,19,0.06) 0%, transparent 70%)'
+              : 'radial-gradient(circle, rgba(57,255,20,0.06) 0%, transparent 70%)',
+          }}
+        />
 
         <div className="relative max-w-lg mx-auto px-6 pt-10 pb-10">
 
@@ -650,14 +777,19 @@ export default function LandingPage() {
           </div>
 
           {/* Fuel Pump Toggle */}
-          <FuelPumpToggle isGarage={isGarageView} onToggle={() => setIsGarageView(!isGarageView)} />
+          <FuelPumpToggle isGarage={isGarageView} onToggle={handleToggle} />
 
-          {/* View content */}
-          {isGarageView ? (
-            <GarageOwnerView goToDemo={goToBooking} />
-          ) : (
-            <CustomerView goToBooking={goToBooking} expandedService={expandedService} setExpandedService={setExpandedService} />
-          )}
+          {/* View content with smooth transition */}
+          <div
+            ref={contentRef}
+            className={`view-transition ${isTransitioning ? 'view-exit' : 'view-enter'}`}
+          >
+            {displayView === 'garage' ? (
+              <GarageOwnerView goToDemo={goToBooking} />
+            ) : (
+              <CustomerView goToBooking={goToBooking} expandedService={expandedService} setExpandedService={setExpandedService} />
+            )}
+          </div>
 
           {/* Footer */}
           <div className="text-center mt-10 pb-8">

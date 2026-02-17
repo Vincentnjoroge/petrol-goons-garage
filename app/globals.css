@@ -89,6 +89,75 @@ body {
   animation: confirm-check 0.5s ease-out forwards;
 }
 
+/* ===== 3D Toggle Effects ===== */
+
+/* Toggle container hover lift */
+.toggle-3d-container {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  will-change: transform;
+}
+.toggle-3d-container:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+/* Toggle bounce on click */
+.toggle-bounce {
+  animation: toggle-bounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes toggle-bounce {
+  0% { transform: scale(1); }
+  30% { transform: scale(0.92); }
+  60% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+/* Pulse ring that expands from the knob */
+.toggle-pulse {
+  animation: toggle-pulse 0.6s ease-out forwards;
+}
+@keyframes toggle-pulse {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+/* Fuel drip animation */
+.fuel-drip {
+  animation: fuel-drip 0.8s ease-in forwards;
+}
+@keyframes fuel-drip {
+  0% { transform: rotate(45deg) translateY(0); opacity: 1; }
+  40% { transform: rotate(45deg) translateY(6px); opacity: 1; }
+  100% { transform: rotate(45deg) translateY(18px) scale(0.5); opacity: 0; }
+}
+
+/* ===== View Transition Effects ===== */
+
+/* Smooth crossfade + subtle slide */
+.view-transition {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  will-change: opacity, transform;
+}
+.view-enter {
+  opacity: 1;
+  transform: translateY(0);
+}
+.view-exit {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+/* ===== Toggle track hover glow ===== */
+.toggle-track {
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+}
+.toggle-track:hover {
+  filter: brightness(1.1);
+}
+.toggle-track:active {
+  transform: scale(0.96);
+}
+
 /* Safe area bottom padding for bottom nav on notched phones */
 .safe-area-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
