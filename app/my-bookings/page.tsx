@@ -179,14 +179,16 @@ function MyBookingsContent() {
       <div className="max-w-4xl mx-auto p-4 py-6">
         {/* Success Message for New Bookings */}
         {showBanner && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+          <div className="bg-green-50 border border-green-200 rounded-xl p-5 mb-6">
             <div className="flex items-start space-x-3">
-              <svg className="w-6 h-6 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <div className="confirm-check flex-shrink-0">
+                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
               <div className="flex-1">
-                <h3 className="text-lg font-bold text-green-800">Request submitted!</h3>
-                <p className="text-base text-green-700">Our team is reviewing your booking. You'll get a confirmation email once approved.</p>
+                <h3 className="text-lg font-bold text-green-800">Pit Stop Confirmed</h3>
+                <p className="text-base text-green-700">Your slot is secured. Our team will confirm within a few hours. Pay after service.</p>
               </div>
               <button onClick={() => setShowBanner(false)} className="text-green-400 hover:text-green-600">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

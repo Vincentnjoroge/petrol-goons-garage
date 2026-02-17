@@ -60,6 +60,35 @@ body {
   letter-spacing: -0.02em;
 }
 
+/* Speed-line section divider — F1-inspired */
+.speed-line {
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(57, 255, 20, 0.3) 30%, rgba(253, 185, 19, 0.3) 70%, transparent 100%);
+}
+
+/* Service card hover — subtle lift */
+.service-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  will-change: transform;
+}
+.service-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.service-card:active {
+  transform: scale(0.98);
+}
+
+/* Checkmark animation for booking confirmation */
+@keyframes confirm-check {
+  0% { transform: scale(0); opacity: 0; }
+  50% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.confirm-check {
+  animation: confirm-check 0.5s ease-out forwards;
+}
+
 /* Safe area bottom padding for bottom nav on notched phones */
 .safe-area-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);

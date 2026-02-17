@@ -114,32 +114,32 @@ export default function LandingPage() {
               Kenya&apos;s Smart<br />
               <span className="text-petrol-green">Garage Experience</span>
             </h2>
-            <p className="text-gray-400 text-lg leading-relaxed mb-3">
-              Book. Track. Approve. Drive.
-            </p>
-            <p className="text-gray-500 text-base leading-relaxed">
-              No waiting. No surprises. No upfront payment.<br />
-              Just transparent, tech-powered car care.
+            <p className="text-gray-400 text-lg leading-relaxed">
+              No queues. No surprises. Fully digital.
             </p>
           </div>
 
           {/* ===== PRIMARY CTA ===== */}
-          <div className="mb-12 space-y-4">
+          <div className="mb-12 space-y-3">
             <button
               onClick={handleBookNow}
-              className="w-full bg-petrol-green text-petrol-black font-bold py-5 rounded-xl hover:brightness-110 transition-all text-xl shadow-lg hover:shadow-xl active:scale-[0.98]"
+              className="w-full bg-petrol-green text-petrol-black font-bold py-5 rounded-xl hover:brightness-110 transition-all text-xl shadow-[0_0_20px_rgba(57,255,20,0.15)] hover:shadow-[0_0_30px_rgba(57,255,20,0.25)] active:scale-[0.96]"
             >
-              Book Your Service
+              Book in 30 Seconds
             </button>
+            <p className="text-center text-petrol-yellow text-sm font-medium">Limited daily slots available</p>
             <button
               onClick={() => {
                 document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })
               }}
-              className="w-full bg-white bg-opacity-5 border border-white border-opacity-15 text-white font-medium py-4 rounded-xl hover:bg-opacity-10 transition-all text-base active:scale-[0.98]"
+              className="w-full bg-transparent border border-white border-opacity-10 text-gray-400 font-medium py-3.5 rounded-xl hover:bg-white hover:bg-opacity-5 transition-all text-sm active:scale-[0.98]"
             >
               See How It Works
             </button>
           </div>
+
+          {/* Speed line divider */}
+          <div className="speed-line mb-14"></div>
 
           {/* ===== TRUST STRIP ===== */}
           <div className="bg-white bg-opacity-[0.04] rounded-2xl p-6 mb-14 border border-white border-opacity-5">
@@ -166,6 +166,9 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
+
+          {/* Speed line divider */}
+          <div className="speed-line mb-14"></div>
 
           {/* ===== HOW IT WORKS ===== */}
           <div id="how-it-works" className="mb-14">
@@ -212,6 +215,9 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
+
+          {/* Speed line divider */}
+          <div className="speed-line mb-14"></div>
 
           {/* ===== WHY DRIVERS CHOOSE US (Outcome-focused) ===== */}
           <div className="mb-14">
@@ -283,6 +289,9 @@ export default function LandingPage() {
             </p>
           </div>
 
+          {/* Speed line divider */}
+          <div className="speed-line mb-14"></div>
+
           {/* ===== INTERACTIVE SERVICES ===== */}
           <div className="mb-14">
             <p className="text-gray-500 text-sm uppercase tracking-wider font-semibold mb-2 text-center">Our Services</p>
@@ -293,7 +302,7 @@ export default function LandingPage() {
                 <button
                   key={service.name}
                   onClick={() => setExpandedService(expandedService === service.name ? null : service.name)}
-                  className={`text-left rounded-xl p-4 transition-all border ${
+                  className={`text-left rounded-xl p-4 transition-all border service-card ${
                     expandedService === service.name
                       ? 'bg-petrol-yellow/10 border-petrol-yellow/40 col-span-2'
                       : 'bg-white bg-opacity-5 border-white border-opacity-10 hover:border-opacity-25'
@@ -344,9 +353,9 @@ export default function LandingPage() {
           <div className="mb-14">
             <button
               onClick={handleBookNow}
-              className="w-full bg-petrol-green text-petrol-black font-bold py-5 rounded-xl hover:brightness-110 transition-all text-xl shadow-lg hover:shadow-xl active:scale-[0.98]"
+              className="w-full bg-petrol-green text-petrol-black font-bold py-5 rounded-xl hover:brightness-110 transition-all text-xl shadow-[0_0_20px_rgba(57,255,20,0.15)] hover:shadow-[0_0_30px_rgba(57,255,20,0.25)] active:scale-[0.96]"
             >
-              Book Your Service Now
+              Book in 30 Seconds
             </button>
           </div>
 
