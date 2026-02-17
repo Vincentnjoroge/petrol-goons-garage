@@ -9,6 +9,8 @@ import {
   CURRENT_SYSTEMS,
   MECHANIC_COUNTS,
 } from '@/lib/garages'
+import { sendBookingEmail, getNewGarageApplicationEmailHtml } from '@/lib/email'
+import { ADMIN_EMAILS } from '@/lib/admin'
 
 type Step = 'welcome' | 'details' | 'services' | 'review' | 'success'
 
@@ -115,6 +117,16 @@ export default function GarageSignupPage() {
     })
 
     if (result.success) {
+      // Send notification email to admin team
+      try {
+        const emailHtml = getNewGarageApplicationEmailHtml({
+          garageName, ownerName, ownerPhone, ownerEmail, location,
+          servicesOffered: selectedServices, mechanicCount, currentSystem,
+        })
+        for (const adminEmail of ADMIN_EMAILS) {
+          sendBookingEmail(adminEmail, `New Garage Application — ${garageName}`, emailHtml).catch(() => {})
+        }
+      } catch { /* email failed silently */ }
       setStep('success')
     } else {
       setError('Something went wrong. Please try again.')

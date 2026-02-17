@@ -444,6 +444,59 @@ export function getServiceReminderEmailHtml(customerName: string, lastService: s
   `
 }
 
+// New garage application — sent to admin team
+export function getNewGarageApplicationEmailHtml(garage: { garageName: string; ownerName: string; ownerPhone: string; ownerEmail: string; location: string; servicesOffered: string[]; mechanicCount: string; currentSystem: string }): string {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+    .container { max-width: 600px; margin: 0 auto; }
+    .header { background: #0A0A0A; color: white; padding: 20px; text-align: center; }
+    .header .brand { color: #FDB913; font-size: 20px; font-weight: bold; }
+    .content { background: white; padding: 24px; border: 1px solid #e5e7eb; }
+    .alert { background: #FDB913; color: #0A0A0A; padding: 12px 24px; border-radius: 8px; text-align: center; font-weight: bold; font-size: 16px; margin: 16px 0; }
+    .details { background: #f9fafb; padding: 16px; border-radius: 8px; margin: 16px 0; }
+    .detail-row { margin: 8px 0; font-size: 14px; }
+    .detail-label { font-weight: bold; color: #6B7280; }
+    .services { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .service-tag { background: #FEF3C7; color: #92400E; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+    .cta-button { display: inline-block; background: #FDB913; color: #0A0A0A; padding: 12px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 16px 0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="brand">PETROL GOONS — NEW GARAGE APPLICATION</div>
+    </div>
+    <div class="content">
+      <div class="alert">🏪 New Garage Wants to Join!</div>
+      <div class="details">
+        <div class="detail-row"><span class="detail-label">Garage:</span> ${garage.garageName}</div>
+        <div class="detail-row"><span class="detail-label">Owner:</span> ${garage.ownerName}</div>
+        <div class="detail-row"><span class="detail-label">Phone:</span> ${garage.ownerPhone}</div>
+        <div class="detail-row"><span class="detail-label">Email:</span> ${garage.ownerEmail}</div>
+        <div class="detail-row"><span class="detail-label">Location:</span> ${garage.location}</div>
+        <div class="detail-row"><span class="detail-label">Team size:</span> ${garage.mechanicCount} mechanics</div>
+        <div class="detail-row"><span class="detail-label">Current system:</span> ${garage.currentSystem}</div>
+        <div class="detail-row">
+          <span class="detail-label">Services (${garage.servicesOffered.length}):</span>
+          <div class="services">
+            ${garage.servicesOffered.map(s => `<span class="service-tag">${s}</span>`).join('')}
+          </div>
+        </div>
+      </div>
+      <p style="text-align: center;">
+        <a href="https://petrol-goons-garage.vercel.app/dashboard" class="cta-button">Review in Dashboard</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+  `
+}
+
 // Send email via API route
 export async function sendBookingEmail(
   to: string,

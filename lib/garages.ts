@@ -8,6 +8,7 @@ import {
   query,
   where,
   getDocs,
+  orderBy,
   serverTimestamp,
   Timestamp,
 } from 'firebase/firestore'
@@ -113,6 +114,21 @@ export async function getGarageById(garageId: string): Promise<GarageProfile | n
   } catch (error) {
     console.error('Error getting garage by ID:', error)
     return null
+  }
+}
+
+// Get all garage profiles (for admin dashboard)
+export async function getAllGarages(): Promise<GarageProfile[]> {
+  try {
+    const q = query(
+      collection(db, 'garages'),
+      orderBy('createdAt', 'desc')
+    )
+    const snapshot = await getDocs(q)
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as GarageProfile[]
+  } catch (error) {
+    console.error('Error getting all garages:', error)
+    return []
   }
 }
 

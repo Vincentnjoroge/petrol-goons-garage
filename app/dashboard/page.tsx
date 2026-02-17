@@ -7,7 +7,9 @@ import { onAuthStateChanged, signOut, User } from 'firebase/auth'
 import { getAllBookings, updateBookingStatus, addServiceNotes, rescheduleBooking, Booking, formatSlotTime, generateTimeSlots, getMechanicName } from '@/lib/bookings'
 import { sendBookingEmail, getBookingConfirmationEmailHtml, getBookingRejectionEmailHtml, getServiceCompletedEmailHtml, getBookingRescheduledEmailHtml } from '@/lib/email'
 import { isAdmin } from '@/lib/admin'
+import { getAllGarages, updateGarageProfile, GarageProfile } from '@/lib/garages'
 
+type DashboardView = 'bookings' | 'garages'
 type FilterTab = 'upcoming' | 'completed' | 'cancelled' | 'all'
 type SortOption = 'date-desc' | 'date-asc' | 'name-asc' | 'name-desc'
 
@@ -42,6 +44,11 @@ export default function DashboardPage() {
   const [assigningMechanicId, setAssigningMechanicId] = useState<string | null>(null)
   // Sort state
   const [sortBy, setSortBy] = useState<SortOption>('date-desc')
+  // Dashboard view (bookings vs garages)
+  const [dashView, setDashView] = useState<DashboardView>('bookings')
+  // Garage applications
+  const [garages, setGarages] = useState<GarageProfile[]>([])
+  const [garageActionLoading, setGarageActionLoading] = useState<string | null>(null)
 
   // Auth check with timeout — dynamic import of auth
   useEffect(() => {
@@ -90,11 +97,15 @@ export default function DashboardPage() {
     if (!user) return
     setLoading(true)
     try {
-      const data = await getAllBookings()
-      setBookings(data)
+      const [bookingData, garageData] = await Promise.all([
+        getAllBookings(),
+        getAllGarages(),
+      ])
+      setBookings(bookingData)
+      setGarages(garageData)
     } catch (err: any) {
-      console.error('Error loading bookings:', err)
-      setError('Failed to load bookings')
+      console.error('Error loading data:', err)
+      setError('Failed to load data')
     }
     setLoading(false)
   }
@@ -228,6 +239,50 @@ export default function DashboardPage() {
     } catch (err) {
       console.error('Error assigning mechanic:', err)
     }
+  }
+
+  // Garage approve/reject
+  const handleGarageStatus = async (garage: GarageProfile, newStatus: 'approved' | 'suspended') => {
+    if (!garage.id) return
+    setGarageActionLoading(garage.id)
+    try {
+      const result = await updateGarageProfile(garage.id, { status: newStatus })
+      if (result.success) {
+        setGarages(garages.map(g =>
+          g.id === garage.id ? { ...g, status: newStatus } : g
+        ))
+        // Send notification email to garage owner
+        if (newStatus === 'approved' && garage.ownerEmail) {
+          try {
+            await sendBookingEmail(
+              garage.ownerEmail,
+              `Welcome to Petrol Goons — ${garage.garageName} is Approved!`,
+              `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+                <div style="background:#0A0A0A;padding:30px;text-align:center;">
+                  <span style="color:#FDB913;font-size:24px;font-weight:bold;">PETROL GOONS</span>
+                </div>
+                <div style="padding:30px;background:white;border:1px solid #e5e7eb;">
+                  <h2 style="color:#059669;">✓ Your Garage is Approved!</h2>
+                  <p>Hi ${garage.ownerName},</p>
+                  <p>Great news — <strong>${garage.garageName}</strong> has been approved and is now part of the Petrol Goons network!</p>
+                  <p>What happens next:</p>
+                  <ul>
+                    <li>Your booking page is being set up</li>
+                    <li>We'll reach out to finalize your dashboard access</li>
+                    <li>Start sharing your booking link with customers</li>
+                  </ul>
+                  <p>Welcome aboard! 🏁<br><strong>The Petrol Goons Team</strong></p>
+                </div>
+              </div>`
+            )
+          } catch { /* email failed */ }
+        }
+      }
+    } catch (err) {
+      console.error('Error updating garage status:', err)
+      setError('Failed to update garage status')
+    }
+    setGarageActionLoading(null)
   }
 
   const handleSignOut = async () => {
@@ -428,6 +483,35 @@ export default function DashboardPage() {
       <div className="racing-stripe"></div>
 
       <div className="max-w-6xl mx-auto p-4 py-6">
+        {/* Dashboard view toggle */}
+        <div className="flex bg-white rounded-xl p-1 shadow-sm mb-5">
+          <button
+            onClick={() => setDashView('bookings')}
+            className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+              dashView === 'bookings'
+                ? 'bg-petrol-black text-white shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            📋 Bookings ({bookings.length})
+          </button>
+          <button
+            onClick={() => setDashView('garages')}
+            className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all relative ${
+              dashView === 'garages'
+                ? 'bg-petrol-black text-white shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            🏪 Garage Applications ({garages.length})
+            {garages.filter(g => g.status === 'pending').length > 0 && (
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                {garages.filter(g => g.status === 'pending').length}
+              </span>
+            )}
+          </button>
+        </div>
+
         {/* Error */}
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
@@ -436,6 +520,152 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* ===== GARAGE APPLICATIONS VIEW ===== */}
+        {dashView === 'garages' && (
+          <div>
+            {/* Garage stats */}
+            <div className="grid grid-cols-3 gap-4 mb-5">
+              <div className="bg-white rounded-lg shadow p-5 text-center">
+                <p className="text-2xl font-bold text-yellow-600">{garages.filter(g => g.status === 'pending').length}</p>
+                <p className="text-sm text-gray-500">Pending</p>
+              </div>
+              <div className="bg-white rounded-lg shadow p-5 text-center">
+                <p className="text-2xl font-bold text-green-600">{garages.filter(g => g.status === 'approved' || g.status === 'active').length}</p>
+                <p className="text-sm text-gray-500">Approved</p>
+              </div>
+              <div className="bg-white rounded-lg shadow p-5 text-center">
+                <p className="text-2xl font-bold text-gray-800">{garages.length}</p>
+                <p className="text-sm text-gray-500">Total</p>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="bg-white rounded-lg shadow p-8 text-center">
+                <div className="w-8 h-8 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                <p className="text-gray-500 mt-2">Loading applications...</p>
+              </div>
+            ) : garages.length === 0 ? (
+              <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+                <p className="text-lg">No garage applications yet</p>
+                <p className="text-sm mt-1">When garage owners sign up, their applications will appear here.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {garages.map(garage => (
+                  <div key={garage.id} className={`bg-white rounded-lg shadow p-5 ${garage.status === 'suspended' ? 'opacity-60' : ''}`}>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        {/* Header */}
+                        <div className="flex items-center space-x-2 mb-3 flex-wrap gap-y-1">
+                          <h3 className="text-lg font-bold">{garage.garageName}</h3>
+                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                            garage.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                            garage.status === 'approved' || garage.status === 'active' ? 'bg-green-100 text-green-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {garage.status === 'pending' ? '⏳ PENDING' :
+                             garage.status === 'approved' || garage.status === 'active' ? '✓ APPROVED' :
+                             'SUSPENDED'}
+                          </span>
+                        </div>
+
+                        {/* Details */}
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                          <div>
+                            <p className="text-gray-500 text-xs">Owner</p>
+                            <p className="font-medium">{garage.ownerName}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500 text-xs">Phone</p>
+                            <p className="font-medium">{garage.ownerPhone}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500 text-xs">Email</p>
+                            <p className="font-medium truncate">{garage.ownerEmail || '—'}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500 text-xs">Location</p>
+                            <p className="font-medium">{garage.location}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500 text-xs">Team Size</p>
+                            <p className="font-medium">{garage.mechanicCount} mechanics</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500 text-xs">Current System</p>
+                            <p className="font-medium">{garage.currentSystem}</p>
+                          </div>
+                        </div>
+
+                        {/* Services */}
+                        <div className="mt-3">
+                          <p className="text-gray-500 text-xs mb-1.5">Services ({garage.servicesOffered?.length || 0})</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {garage.servicesOffered?.map(s => (
+                              <span key={s} className="bg-yellow-50 text-yellow-800 text-xs font-medium px-2 py-0.5 rounded">
+                                {s}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Applied date */}
+                        <p className="text-gray-400 text-xs mt-3">
+                          Applied: {garage.createdAt?.toDate?.()
+                            ? garage.createdAt.toDate().toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })
+                            : 'Just now'}
+                        </p>
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="flex flex-col space-y-2 ml-4 shrink-0">
+                        {garage.status === 'pending' && (
+                          <>
+                            <button
+                              onClick={() => handleGarageStatus(garage, 'approved')}
+                              disabled={garageActionLoading === garage.id}
+                              className="px-4 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 whitespace-nowrap"
+                            >
+                              {garageActionLoading === garage.id ? '...' : '✓ Approve'}
+                            </button>
+                            <button
+                              onClick={() => handleGarageStatus(garage, 'suspended')}
+                              disabled={garageActionLoading === garage.id}
+                              className="px-4 py-2.5 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 disabled:opacity-50 whitespace-nowrap"
+                            >
+                              {garageActionLoading === garage.id ? '...' : 'Decline'}
+                            </button>
+                          </>
+                        )}
+                        {(garage.status === 'approved' || garage.status === 'active') && (
+                          <button
+                            onClick={() => handleGarageStatus(garage, 'suspended')}
+                            disabled={garageActionLoading === garage.id}
+                            className="px-4 py-2.5 bg-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-300 disabled:opacity-50 whitespace-nowrap"
+                          >
+                            Suspend
+                          </button>
+                        )}
+                        {garage.status === 'suspended' && (
+                          <button
+                            onClick={() => handleGarageStatus(garage, 'approved')}
+                            disabled={garageActionLoading === garage.id}
+                            className="px-4 py-2.5 bg-green-100 text-green-700 rounded-lg text-sm font-medium hover:bg-green-200 disabled:opacity-50 whitespace-nowrap"
+                          >
+                            Reactivate
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ===== BOOKINGS VIEW ===== */}
+        {dashView === 'bookings' && <>
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mb-6">
           <div className="bg-white rounded-lg shadow p-5">
@@ -834,15 +1064,16 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
-      </div>
 
-      {/* Click-away overlay to close mechanic dropdown */}
-      {assigningMechanicId && (
-        <div
-          className="fixed inset-0 z-30"
-          onClick={() => setAssigningMechanicId(null)}
-        />
-      )}
+        {/* Click-away overlay to close mechanic dropdown */}
+        {assigningMechanicId && (
+          <div
+            className="fixed inset-0 z-30"
+            onClick={() => setAssigningMechanicId(null)}
+          />
+        )}
+        </>}
+      </div>
     </div>
   )
 }
