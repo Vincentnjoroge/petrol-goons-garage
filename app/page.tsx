@@ -458,7 +458,7 @@ function CustomerView({ goToBooking, expandedService, setExpandedService }: {
 }
 
 // ===== GARAGE OWNER VIEW =====
-function GarageOwnerView({ goToDemo }: { goToDemo: () => void }) {
+function GarageOwnerView({ goToDemo, goToSignup }: { goToDemo: () => void; goToSignup: () => void }) {
   return (
     <div className="transition-opacity duration-300">
       {/* Hero */}
@@ -478,16 +478,16 @@ function GarageOwnerView({ goToDemo }: { goToDemo: () => void }) {
       {/* CTA */}
       <div className="mb-12 space-y-3">
         <button
-          onClick={goToDemo}
+          onClick={goToSignup}
           className="w-full bg-petrol-yellow text-petrol-black font-bold py-5 rounded-xl hover:brightness-110 transition-all text-xl shadow-[0_0_20px_rgba(253,185,19,0.15)] hover:shadow-[0_0_30px_rgba(253,185,19,0.25)] active:scale-[0.96]"
         >
-          See Live Demo
+          Register Your Garage
         </button>
         <button
-          onClick={() => document.getElementById('the-problem')?.scrollIntoView({ behavior: 'smooth' })}
+          onClick={goToDemo}
           className="w-full bg-transparent border border-white border-opacity-10 text-gray-400 font-medium py-3.5 rounded-xl hover:bg-white hover:bg-opacity-5 transition-all text-sm active:scale-[0.98]"
         >
-          See How It Works
+          See Live Demo First
         </button>
       </div>
 
@@ -640,17 +640,23 @@ function GarageOwnerView({ goToDemo }: { goToDemo: () => void }) {
 
       <div className="speed-line mb-14"></div>
 
-      {/* Demo CTA */}
+      {/* Register CTA */}
       <div className="mb-14 text-center">
-        <h3 className="text-2xl font-bold text-white mb-3">See it in action</h3>
+        <h3 className="text-2xl font-bold text-white mb-3">Ready to go digital?</h3>
         <p className="text-gray-400 text-base mb-6">
-          Try the live booking system your customers would use. No signup needed.
+          Set up takes 2 minutes. Start receiving bookings today.
         </p>
         <button
-          onClick={goToDemo}
-          className="w-full bg-petrol-yellow text-petrol-black font-bold py-5 rounded-xl hover:brightness-110 transition-all text-xl shadow-[0_0_20px_rgba(253,185,19,0.15)] hover:shadow-[0_0_30px_rgba(253,185,19,0.25)] active:scale-[0.96]"
+          onClick={goToSignup}
+          className="w-full bg-petrol-yellow text-petrol-black font-bold py-5 rounded-xl hover:brightness-110 transition-all text-xl shadow-[0_0_20px_rgba(253,185,19,0.15)] hover:shadow-[0_0_30px_rgba(253,185,19,0.25)] active:scale-[0.96] mb-3"
         >
-          Try Live Demo
+          Register Your Garage
+        </button>
+        <button
+          onClick={goToDemo}
+          className="w-full bg-transparent border border-white border-opacity-10 text-gray-400 font-medium py-3.5 rounded-xl hover:bg-white hover:bg-opacity-5 transition-all text-sm active:scale-[0.98]"
+        >
+          Or try the live demo first
         </button>
       </div>
 
@@ -679,6 +685,7 @@ export default function LandingPage() {
   const contentRef = useRef<HTMLDivElement>(null)
 
   const goToBooking = () => { window.location.href = '/book' }
+  const goToSignup = () => { window.location.href = '/garage-signup' }
 
   // Smooth view transition handler
   const handleToggle = () => {
@@ -785,7 +792,7 @@ export default function LandingPage() {
             className={`view-transition ${isTransitioning ? 'view-exit' : 'view-enter'}`}
           >
             {displayView === 'garage' ? (
-              <GarageOwnerView goToDemo={goToBooking} />
+              <GarageOwnerView goToDemo={goToBooking} goToSignup={goToSignup} />
             ) : (
               <CustomerView goToBooking={goToBooking} expandedService={expandedService} setExpandedService={setExpandedService} />
             )}
