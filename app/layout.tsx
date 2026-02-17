@@ -5,21 +5,21 @@ import NetworkStatus from './components/NetworkStatus'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://petrol-goons-garage.vercel.app'),
-  title: 'Petrol Goons OS — The Operating System for Modern Garages',
-  description: 'Run your garage like a performance machine. Digital bookings, job tracking, customer records, and revenue tools — all in one platform. Built for Kenya.',
+  title: 'Petrol Goons — Book Car Services & Garage Platform for Kenya',
+  description: 'Book car services in seconds or power your garage with digital tools. Bookings, job tracking, customer records, and revenue tools — all in one platform. Built for Kenya.',
   keywords: ['garage management', 'garage software', 'Kenya', 'Nairobi', 'booking system', 'car service', 'SaaS', 'petrol goons', 'garage platform'],
   authors: [{ name: 'Petrol Goons' }],
   openGraph: {
-    title: 'Petrol Goons OS — The Operating System for Modern Garages',
-    description: 'Manage bookings, track jobs, store records, and increase revenue. Built for Kenya\'s next generation of garages.',
+    title: 'Petrol Goons — Book Car Services & Garage Platform for Kenya',
+    description: 'Book car services in seconds or manage your garage digitally. Built for Kenya\'s next generation of garages.',
     url: 'https://petrol-goons-garage.vercel.app',
-    siteName: 'Petrol Goons OS',
+    siteName: 'Petrol Goons',
     locale: 'en_KE',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Petrol Goons OS — The Operating System for Modern Garages',
+    title: 'Petrol Goons — Book Car Services & Garage Platform for Kenya',
     description: 'Digital bookings, job tracking, customer records & revenue tools. Powering Kenya\'s modern garages.',
   },
   manifest: '/manifest.json',

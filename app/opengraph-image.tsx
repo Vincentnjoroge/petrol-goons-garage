@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og'
 
 export const runtime = 'edge'
-export const alt = 'Petrol Goons OS — The Operating System for Modern Garages'
+export const alt = 'Petrol Goons — Book Car Services & Garage Platform for Kenya'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
@@ -85,7 +85,7 @@ export default async function Image() {
             textTransform: 'uppercase',
           }}
         >
-          OS
+          GARAGE
         </div>
 
         {/* CTA */}
@@ -99,7 +99,7 @@ export default async function Image() {
             marginBottom: '16px',
           }}
         >
-          The Operating System for Modern Garages
+          Book Services & Power Your Garage
         </div>
 
         <div
