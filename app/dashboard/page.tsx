@@ -256,7 +256,7 @@ export default function DashboardPage() {
           try {
             await sendBookingEmail(
               garage.ownerEmail,
-              `Welcome to Petrol Goons — ${garage.garageName} is Approved!`,
+              `Welcome to Petrol Goons — ${(garage as any).garageName || garage.name} is Approved!`,
               `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
                 <div style="background:#0A0A0A;padding:30px;text-align:center;">
                   <span style="color:#FDB913;font-size:24px;font-weight:bold;">PETROL GOONS</span>
@@ -264,7 +264,7 @@ export default function DashboardPage() {
                 <div style="padding:30px;background:white;border:1px solid #e5e7eb;">
                   <h2 style="color:#059669;">✓ Your Garage is Approved!</h2>
                   <p>Hi ${garage.ownerName},</p>
-                  <p>Great news — <strong>${garage.garageName}</strong> has been approved and is now part of the Petrol Goons network!</p>
+                  <p>Great news — <strong>${(garage as any).garageName || garage.name}</strong> has been approved and is now part of the Petrol Goons network!</p>
                   <p>What happens next:</p>
                   <ul>
                     <li>Your booking page is being set up</li>
@@ -557,7 +557,7 @@ export default function DashboardPage() {
                       <div className="flex-1">
                         {/* Header */}
                         <div className="flex items-center space-x-2 mb-3 flex-wrap gap-y-1">
-                          <h3 className="text-lg font-bold">{garage.garageName}</h3>
+                          <h3 className="text-lg font-bold">{(garage as any).garageName || garage.name}</h3>
                           <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                             garage.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                             garage.status === 'approved' || garage.status === 'active' ? 'bg-green-100 text-green-800' :

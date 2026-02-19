@@ -2,22 +2,37 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Booking photos: authenticated users can upload to their own folder
-    match /bookings/{userId}/{allPaths=**} {
-      // Users can upload their own photos (max 5MB)
-      allow write: if request.auth != null
-        && request.auth.uid == userId
-        && request.resource.size < 5 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
-      // Users can read their own photos
-      allow read: if request.auth != null && request.auth.uid == userId;
-      // Admins can read all photos
-      allow read: if request.auth != null && request.auth.token.email in [
+
+    // Super admin whitelist
+    function isSuperAdmin() {
+      return request.auth != null && request.auth.token.email in [
         'michaeldiro@gmail.com',
         'mwololokimanthi@gmail.com',
         'thomasaquinas689@gmail.com',
         'viny.njoroge1@gmail.com'
       ];
+    }
+
+    // Multi-tenant: Photos stored under garages/{garageId}/jobs/
+    match /garages/{garageId}/{allPaths=**} {
+      // Authenticated users can upload photos (max 5MB, images only)
+      allow write: if request.auth != null
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      // Authenticated users can read photos
+      allow read: if request.auth != null;
+      // Super admins can read all
+      allow read: if isSuperAdmin();
+    }
+
+    // Legacy: Old booking photos under bookings/{userId}/
+    match /bookings/{userId}/{allPaths=**} {
+      allow write: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow read: if isSuperAdmin();
     }
 
     // Deny all other access

@@ -1,6 +1,48 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
-  <rect width="192" height="192" rx="40" fill="#0A0A0A"/>
-  <circle cx="96" cy="96" r="60" fill="#FDB913"/>
-  <path d="M115.77 71.23l.01-.01-3.72-3.72L111 68.56l2.11 2.11c-.94.36-1.61 1.26-1.61 2.33 0 1.38 1.12 2.5 2.5 2.5.36 0 .69-.08 1-.21v7.21c0 .55-.45 1-1 1s-1-.45-1-1V78c0-1.1-.9-2-2-2h-1V69c0-1.1-.9-2-2-2H102c-1.1 0-2 .9-2 2v16h10v-7.5h1.5v5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V73c0-.69-.28-1.32-.73-1.77zM108 74h-6v-5h6v5zm6 0c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z" fill="#0A0A0A" transform="translate(-8, 20) scale(1.2)"/>
-  <text x="96" y="140" text-anchor="middle" font-family="Arial, sans-serif" font-weight="bold" font-size="18" fill="#0A0A0A">PETROL GOONS</text>
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#111111"/>
+      <stop offset="100%" style="stop-color:#0A0A0A"/>
+    </linearGradient>
+    <linearGradient id="pumpGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFD54F"/>
+      <stop offset="100%" style="stop-color:#FDB913"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <!-- Background rounded square -->
+  <rect width="192" height="192" rx="42" fill="url(#bgGrad)"/>
+  <!-- Outer ring -->
+  <circle cx="96" cy="88" r="62" fill="none" stroke="#FDB913" stroke-width="2.5" opacity="0.3"/>
+  <!-- Inner circle badge -->
+  <circle cx="96" cy="88" r="54" fill="#FDB913" filter="url(#glow)"/>
+  <!-- Inner shadow ring -->
+  <circle cx="96" cy="88" r="50" fill="none" stroke="#E5A811" stroke-width="1.5"/>
+  <!-- Fuel pump body -->
+  <rect x="74" y="64" width="30" height="38" rx="3" fill="#0A0A0A"/>
+  <!-- Pump screen/display -->
+  <rect x="78" y="68" width="22" height="12" rx="1.5" fill="#1a1a1a"/>
+  <!-- Screen numbers -->
+  <text x="89" y="77.5" text-anchor="middle" font-family="monospace" font-weight="bold" font-size="7" fill="#39FF14">PG</text>
+  <!-- Pump nozzle holder -->
+  <rect x="78" y="83" width="22" height="4" rx="1" fill="#1a1a1a"/>
+  <!-- Pump base -->
+  <rect x="72" y="102" width="34" height="5" rx="2" fill="#0A0A0A"/>
+  <!-- Nozzle hose -->
+  <path d="M104 74 C112 74, 118 74, 118 82 L118 92 C118 96, 116 98, 114 98" fill="none" stroke="#0A0A0A" stroke-width="3" stroke-linecap="round"/>
+  <!-- Nozzle tip -->
+  <path d="M114 98 L108 106 L112 106 L118 98" fill="#0A0A0A"/>
+  <!-- Fuel drop -->
+  <path d="M110 110 C110 110, 107 116, 110 118 C113 116, 110 110, 110 110Z" fill="#39FF14" opacity="0.9"/>
+  <!-- Brand text -->
+  <text x="96" y="132" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="12" fill="#FDB913" letter-spacing="1.5">PETROL</text>
+  <text x="96" y="146" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="12" fill="#39FF14" letter-spacing="1.5">GOONS</text>
+  <!-- Neon green accent line -->
+  <line x1="62" y1="152" x2="130" y2="152" stroke="#39FF14" stroke-width="1.5" opacity="0.6"/>
 </svg>

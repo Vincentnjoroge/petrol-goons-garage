@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#111111"/>
+      <stop offset="100%" style="stop-color:#0A0A0A"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)"/>
+  <!-- Outer ring -->
+  <circle cx="256" cy="230" r="168" fill="none" stroke="#FDB913" stroke-width="4" opacity="0.3"/>
+  <!-- Yellow circle badge -->
+  <circle cx="256" cy="230" r="148" fill="#FDB913" filter="url(#glow)"/>
+  <circle cx="256" cy="230" r="138" fill="none" stroke="#E5A811" stroke-width="3"/>
+  <!-- Fuel pump body -->
+  <rect x="196" y="164" width="82" height="104" rx="6" fill="#0A0A0A"/>
+  <!-- Pump screen -->
+  <rect x="206" y="175" width="62" height="34" rx="4" fill="#1a1a1a"/>
+  <!-- Screen text -->
+  <text x="237" y="199" text-anchor="middle" font-family="monospace" font-weight="bold" font-size="20" fill="#39FF14">PG</text>
+  <!-- Nozzle holder -->
+  <rect x="206" y="216" width="62" height="10" rx="3" fill="#1a1a1a"/>
+  <!-- Pump base -->
+  <rect x="190" y="268" width="94" height="14" rx="5" fill="#0A0A0A"/>
+  <!-- Nozzle hose -->
+  <path d="M278 194 C298 194, 314 194, 314 216 L314 244 C314 254, 310 260, 304 260" fill="none" stroke="#0A0A0A" stroke-width="7" stroke-linecap="round"/>
+  <!-- Nozzle tip -->
+  <path d="M304 260 L290 280 L298 280 L314 260" fill="#0A0A0A"/>
+  <!-- Fuel drop -->
+  <path d="M294 290 C294 290, 286 308, 294 314 C302 308, 294 290, 294 290Z" fill="#39FF14" opacity="0.9"/>
+  <!-- Brand text PETROL -->
+  <text x="256" y="350" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="36" fill="#FDB913" letter-spacing="4">PETROL</text>
+  <!-- Brand text GOONS -->
+  <text x="256" y="388" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="36" fill="#39FF14" letter-spacing="4">GOONS</text>
+  <!-- Accent line -->
+  <line x1="156" y1="402" x2="356" y2="402" stroke="#39FF14" stroke-width="3" opacity="0.5"/>
+</svg>

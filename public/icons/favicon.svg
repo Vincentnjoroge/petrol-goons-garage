@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="7" fill="#0A0A0A"/>
+  <circle cx="16" cy="15" r="12" fill="#FDB913"/>
+  <!-- Simplified fuel pump -->
+  <rect x="10" y="9" width="9" height="12" rx="1" fill="#0A0A0A"/>
+  <rect x="11.5" y="10.5" width="6" height="4" rx="0.5" fill="#1a1a1a"/>
+  <text x="14.5" y="14" text-anchor="middle" font-family="monospace" font-weight="bold" font-size="3" fill="#39FF14">PG</text>
+  <!-- Nozzle -->
+  <path d="M19 12 C22 12, 23 12, 23 14.5 L23 17.5" fill="none" stroke="#0A0A0A" stroke-width="1.5" stroke-linecap="round"/>
+  <circle cx="23" cy="19" r="1" fill="#39FF14"/>
+</svg>
