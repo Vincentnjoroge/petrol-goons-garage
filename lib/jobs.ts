@@ -527,6 +527,70 @@ export async function getGarageStats(garageId: string): Promise<{
 }
 
 // ==============================
+// REVIEWS
+// ==============================
+
+export async function addReview(
+  garageId: string,
+  data: {
+    jobId: string
+    bookingTag: string
+    customerId: string
+    customerName: string
+    rating: number
+    comment: string
+    mechanicId?: string
+    mechanicName?: string
+    services: string[]
+  }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await addDoc(collection(db, 'garages', garageId, 'reviews'), {
+      ...data,
+      garageId,
+      isPublic: true,
+      createdAt: serverTimestamp(),
+    })
+    return { success: true }
+  } catch (error: any) {
+    console.error('Error adding review:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+export async function getGarageReviews(garageId: string): Promise<any[]> {
+  try {
+    const q = query(
+      collection(db, 'garages', garageId, 'reviews'),
+      orderBy('createdAt', 'desc')
+    )
+    const snapshot = await getDocs(q)
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
+  } catch (error) {
+    console.error('Error getting reviews:', error)
+    return []
+  }
+}
+
+export async function respondToReview(
+  garageId: string,
+  reviewId: string,
+  response: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const reviewRef = doc(db, 'garages', garageId, 'reviews', reviewId)
+    await updateDoc(reviewRef, {
+      garageResponse: response,
+      respondedAt: serverTimestamp(),
+    })
+    return { success: true }
+  } catch (error: any) {
+    console.error('Error responding to review:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+// ==============================
 // LEGACY COMPATIBILITY
 // ==============================
 

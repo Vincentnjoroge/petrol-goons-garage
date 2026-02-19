@@ -304,6 +304,28 @@ export interface ActivityLog {
 }
 
 // ==============================
+// CUSTOMER REVIEWS (Subcollection of Garage)
+// ==============================
+
+export interface CustomerReview {
+  id?: string
+  garageId: string
+  jobId: string
+  bookingTag: string
+  customerId: string              // Firebase UID
+  customerName: string
+  rating: number                  // 1-5 stars
+  comment: string
+  mechanicId?: string
+  mechanicName?: string
+  services: string[]              // What was serviced
+  isPublic: boolean               // Show on garage profile
+  garageResponse?: string         // Garage owner can reply
+  respondedAt?: Timestamp
+  createdAt: Timestamp
+}
+
+// ==============================
 // INVOICES (SaaS Billing — PG → Garage)
 // ==============================
 
