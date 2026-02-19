@@ -411,185 +411,109 @@ function BookingPageContent() {
         </div>
       </div>
 
-      {/* STEP: Select Garage */}
-      {step === 'select-garage' && (
-        <div className="max-w-2xl mx-auto p-4 -mt-4">
-          <div className="bg-white rounded-2xl shadow-lg p-7">
-            <h2 className="text-2xl font-bold text-petrol-black mb-1">Choose a Garage</h2>
-            <p className="text-petrol-gray text-base mb-6">Select where you'd like to get your car serviced</p>
+      {/* Booking Form — always shown */}
+      <div className="max-w-2xl mx-auto p-4 -mt-4">
+        <div className="bg-white rounded-2xl shadow-lg p-7">
+          <h2 className="text-2xl font-bold text-petrol-black mb-1">Book a Service</h2>
+          <p className="text-petrol-gray text-base mb-6">Pick a garage, date and time — the team will confirm your slot</p>
 
-            {loadingGarages ? (
-              <div className="flex flex-col items-center justify-center py-16">
-                <div className="w-10 h-10 border-3 border-petrol-yellow border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p className="text-petrol-gray">Loading garages...</p>
-              </div>
-            ) : garages.length === 0 ? (
-              <div className="text-center py-16">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-bold text-petrol-black mb-2">No garages available yet</h3>
-                <p className="text-petrol-gray text-sm">We're onboarding garages right now. Check back soon!</p>
-                <button
-                  onClick={() => router.push('/')}
-                  className="mt-6 bg-petrol-yellow text-petrol-black font-semibold px-6 py-3 rounded-xl hover:brightness-110 transition-all"
-                >
-                  Go Home
-                </button>
-              </div>
-            ) : (
-              <>
-                {/* Search */}
-                {garages.length > 3 && (
-                  <div className="mb-4">
-                    <input
-                      type="text"
-                      value={garageSearchQuery}
-                      onChange={(e) => setGarageSearchQuery(e.target.value)}
-                      placeholder="Search by name, location, or service..."
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-petrol-yellow focus:border-petrol-yellow outline-none text-petrol-black placeholder-gray-400"
-                    />
-                  </div>
-                )}
-
-                {/* Garage cards */}
-                <div className="space-y-3">
-                  {filteredGarages.map(garage => (
-                    <button
-                      key={garage.id}
-                      onClick={() => handleSelectGarage(garage)}
-                      className="w-full text-left bg-white border-2 border-gray-200 rounded-xl p-5 hover:border-petrol-yellow hover:bg-yellow-50 transition-all active:scale-[0.98]"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-lg font-bold text-petrol-black truncate">
-                            {(garage as any).garageName || garage.name}
-                          </h3>
-                          <div className="flex items-center space-x-1 mt-1">
-                            <svg className="w-4 h-4 text-petrol-gray flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                            <p className="text-sm text-petrol-gray truncate">{garage.location}</p>
-                          </div>
-                        </div>
-                        <div className="flex-shrink-0 ml-3">
-                          <div className="w-10 h-10 bg-petrol-yellow rounded-full flex items-center justify-center">
-                            <svg className="w-5 h-5 text-petrol-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </div>
-                        </div>
-                      </div>
-                      {/* Services tags */}
-                      {garage.servicesOffered && garage.servicesOffered.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mt-3">
-                          {garage.servicesOffered.slice(0, 4).map(service => (
-                            <span key={service} className="text-xs bg-gray-100 text-petrol-gray px-2 py-1 rounded-md">
-                              {service}
-                            </span>
-                          ))}
-                          {garage.servicesOffered.length > 4 && (
-                            <span className="text-xs bg-gray-100 text-petrol-gray px-2 py-1 rounded-md">
-                              +{garage.servicesOffered.length - 4} more
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-
-                {filteredGarages.length === 0 && garageSearchQuery && (
-                  <div className="text-center py-8">
-                    <p className="text-petrol-gray">No garages match "{garageSearchQuery}"</p>
-                    <button
-                      onClick={() => setGarageSearchQuery('')}
-                      className="text-petrol-yellow font-medium mt-2 hover:underline"
-                    >
-                      Clear search
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* STEP: Booking Form */}
-      {step === 'booking-form' && selectedGarage && (
-        <div className="max-w-2xl mx-auto p-4 -mt-4">
-          {/* Back to garage selection (only if multiple garages) */}
-          {garages.length > 1 && (
-            <button
-              onClick={() => {
-                setStep('select-garage')
-                setSelectedGarage(null)
-                setGarageMechanics([])
-                setFormData({ vinNumber: '', service: '', otherService: '', description: '', preferredDate: '', preferredTime: '', contactEmail: '' })
-                setMechanicPreference('garage-assigns')
-                setPhotos([])
-                setPhotoPreviews([])
-                setError(null)
-              }}
-              className="flex items-center space-x-1 text-petrol-gray hover:text-petrol-black mb-3 transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              <span className="text-sm font-medium">Choose a different garage</span>
-            </button>
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-4">
+              <p className="text-sm">{error}</p>
+            </div>
           )}
 
-          {/* Garage info banner */}
-          <div className="bg-petrol-black rounded-xl p-4 mb-4 flex items-center space-x-3">
-            <div className="w-12 h-12 bg-petrol-yellow rounded-full flex items-center justify-center flex-shrink-0">
-              <svg className="w-6 h-6 text-petrol-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-white font-bold truncate">{(selectedGarage as any).garageName || selectedGarage.name}</p>
-              <p className="text-gray-400 text-sm truncate">{selectedGarage.location}</p>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-lg p-7">
-            <h2 className="text-2xl font-bold text-petrol-black mb-1">Book a Service</h2>
-            <p className="text-petrol-gray text-base mb-6">Pick a date and time — the garage will confirm your slot</p>
-
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-4">
-                <p className="text-sm">{error}</p>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Email for phone-auth users */}
+            {user && !user.email && (
+              <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                <label className="block text-base font-semibold text-petrol-black mb-1.5">
+                  Your email address
+                </label>
+                <input
+                  type="email"
+                  value={formData.contactEmail}
+                  onChange={(e) => setFormData({...formData, contactEmail: e.target.value})}
+                  className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-petrol-yellow focus:border-petrol-yellow outline-none transition-colors text-petrol-black placeholder-gray-400 bg-white"
+                  placeholder="you@example.com"
+                />
+                <p className="text-sm text-blue-600 mt-1">So we can send you booking updates and confirmations</p>
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Email for phone-auth users */}
-              {user && !user.email && (
-                <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
-                  <label className="block text-base font-semibold text-petrol-black mb-1.5">
-                    Your email address
-                  </label>
-                  <input
-                    type="email"
-                    value={formData.contactEmail}
-                    onChange={(e) => setFormData({...formData, contactEmail: e.target.value})}
-                    className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-petrol-yellow focus:border-petrol-yellow outline-none transition-colors text-petrol-black placeholder-gray-400 bg-white"
-                    placeholder="you@example.com"
-                  />
-                  <p className="text-sm text-blue-600 mt-1">So we can send you booking updates and confirmations</p>
+            {/* Step 1: Select Garage (dropdown) */}
+            <div>
+              <label className="block text-base font-semibold text-petrol-black mb-1.5">
+                1. Select a garage <span className="text-red-500">*</span>
+              </label>
+              {loadingGarages ? (
+                <div className="flex items-center space-x-2 py-4">
+                  <div className="w-5 h-5 border-2 border-petrol-yellow border-t-transparent rounded-full animate-spin"></div>
+                  <span className="text-petrol-gray text-sm">Loading garages...</span>
                 </div>
+              ) : garages.length === 0 && !selectedGarage ? (
+                <div className="bg-gray-50 rounded-xl p-5 text-center">
+                  <p className="text-petrol-gray text-sm mb-3">No garages are available for booking right now.</p>
+                  <button
+                    type="button"
+                    onClick={() => router.push('/')}
+                    className="bg-petrol-yellow text-petrol-black font-semibold px-5 py-2.5 rounded-lg text-sm hover:brightness-110 transition-all"
+                  >
+                    Go Home
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <select
+                    value={selectedGarage?.id || ''}
+                    onChange={(e) => {
+                      const garage = garages.find(g => g.id === e.target.value)
+                      if (garage) {
+                        handleSelectGarage(garage)
+                      } else {
+                        setSelectedGarage(null)
+                        setGarageMechanics([])
+                        setStep('select-garage')
+                      }
+                    }}
+                    className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-petrol-yellow focus:border-petrol-yellow outline-none bg-white transition-colors text-petrol-black"
+                    required
+                  >
+                    <option value="">Choose a garage...</option>
+                    {garages.map(garage => (
+                      <option key={garage.id} value={garage.id || ''}>
+                        {(garage as any).garageName || garage.name} — {garage.location}
+                      </option>
+                    ))}
+                  </select>
+                  {/* Show selected garage details */}
+                  {selectedGarage && (
+                    <div className="mt-2 bg-petrol-black rounded-xl p-3 flex items-center space-x-3">
+                      <div className="w-9 h-9 bg-petrol-yellow rounded-full flex items-center justify-center flex-shrink-0">
+                        <svg className="w-5 h-5 text-petrol-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white font-semibold text-sm truncate">{(selectedGarage as any).garageName || selectedGarage.name}</p>
+                        <p className="text-gray-400 text-xs truncate">{selectedGarage.location}</p>
+                      </div>
+                      {selectedGarage.servicesOffered && selectedGarage.servicesOffered.length > 0 && (
+                        <span className="text-xs text-petrol-yellow font-medium flex-shrink-0">
+                          {selectedGarage.servicesOffered.length} services
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
+            </div>
 
-              {/* Step 1: Date Picker */}
-              <div>
-                <label className="block text-base font-semibold text-petrol-black mb-1.5">
-                  1. Pick a date <span className="text-red-500">*</span>
-                </label>
+            {/* Step 2: Date Picker */}
+            <div>
+              <label className="block text-base font-semibold text-petrol-black mb-1.5">
+                2. Pick a date <span className="text-red-500">*</span>
+              </label>
                 <input
                   type="date"
                   required
@@ -617,7 +541,7 @@ function BookingPageContent() {
               {formData.preferredDate && !selectedDateIsSunday && (
                 <div>
                   <label className="block text-base font-semibold text-petrol-black mb-1.5">
-                    2. Pick a time slot <span className="text-red-500">*</span>
+                    3. Pick a time slot <span className="text-red-500">*</span>
                   </label>
                   <p className="text-sm text-petrol-gray mb-3">
                     {loadingSlots
@@ -681,7 +605,7 @@ function BookingPageContent() {
               {/* Step 3: Mechanic Preference */}
               <div>
                 <label className="block text-base font-semibold text-petrol-black mb-1.5">
-                  3. Mechanic preference
+                  4. Mechanic preference
                 </label>
                 <p className="text-sm text-petrol-gray mb-3">Choose a specific mechanic or let the garage assign one</p>
                 <div className="grid grid-cols-2 gap-2.5">
@@ -868,7 +792,7 @@ function BookingPageContent() {
               {/* Submit */}
               <button
                 type="submit"
-                disabled={isSubmitting || !formData.preferredDate || !formData.preferredTime || selectedDateIsSunday}
+                disabled={isSubmitting || !selectedGarage || !formData.preferredDate || !formData.preferredTime || selectedDateIsSunday}
                 className="w-full bg-petrol-green text-petrol-black font-bold py-5 rounded-xl hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-xl shadow-md hover:shadow-lg active:scale-[0.98]"
               >
                 {isSubmitting ? (
@@ -882,14 +806,13 @@ function BookingPageContent() {
                   'Pick a time slot above'
                 )}
               </button>
-            </form>
-          </div>
-
-          <p className="text-center text-sm text-petrol-gray mt-4 px-4 pb-24">
-            The garage reviews every booking and confirms within a few hours. No payment until after service.
-          </p>
+          </form>
         </div>
-      )}
+
+        <p className="text-center text-sm text-petrol-gray mt-4 px-4 pb-24">
+          The garage reviews every booking and confirms within a few hours. No payment until after service.
+        </p>
+      </div>
 
       {/* Bottom Navigation */}
       {user && (
