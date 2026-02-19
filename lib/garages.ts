@@ -216,6 +216,21 @@ export async function getAllGarages(): Promise<Garage[]> {
   }
 }
 
+export async function getApprovedGarages(): Promise<Garage[]> {
+  try {
+    const q = query(
+      collection(db, 'garages'),
+      where('status', 'in', ['approved', 'active']),
+      orderBy('createdAt', 'desc')
+    )
+    const snapshot = await getDocs(q)
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Garage[]
+  } catch (error) {
+    console.error('Error getting approved garages:', error)
+    return []
+  }
+}
+
 export async function updateGarageProfile(
   garageId: string,
   data: Partial<Garage>

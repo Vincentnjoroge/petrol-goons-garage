@@ -4,13 +4,79 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { getUserBookings, updateBookingStatus, Booking, formatSlotTime, getMechanicName, getUserCars } from '@/lib/bookings'
+import { getCustomerJobsAllGarages, updateJobStatus } from '@/lib/jobs'
+import { Job, JOB_STATUS_LABELS, JOB_STATUS_COLORS } from '@/lib/types'
+
+// Unified booking type that can hold either legacy bookings or new jobs
+type UnifiedBooking = {
+  id: string
+  source: 'legacy' | 'job'
+  garageId?: string
+  garageName?: string
+  bookingTag?: string
+  service: string
+  otherService?: string
+  description?: string
+  preferredDate: string
+  preferredTime: string
+  vinNumber?: string
+  status: string
+  photos?: string[]
+  mechanicPreference?: string
+  assignedMechanicName?: string
+  serviceNotes?: string
+  submittedAt?: any
+  completedAt?: any
+}
+
+function legacyToUnified(b: Booking): UnifiedBooking {
+  return {
+    id: b.id || '',
+    source: 'legacy',
+    bookingTag: (b as any).bookingTag,
+    service: b.service || 'Service Appointment',
+    otherService: b.otherService,
+    description: b.description,
+    preferredDate: b.preferredDate,
+    preferredTime: b.preferredTime,
+    vinNumber: b.vinNumber,
+    status: b.status,
+    photos: b.photos,
+    mechanicPreference: (b as any).mechanicPreference,
+    serviceNotes: (b as any).serviceNotes,
+    submittedAt: b.submittedAt,
+    completedAt: (b as any).completedAt,
+  }
+}
+
+function jobToUnified(j: Job & { garageName?: string }): UnifiedBooking {
+  return {
+    id: j.id || '',
+    source: 'job',
+    garageId: j.garageId,
+    garageName: j.garageName || '',
+    bookingTag: j.bookingTag,
+    service: j.services?.join(', ') || 'Service Appointment',
+    otherService: j.otherService,
+    description: j.description,
+    preferredDate: j.preferredDate,
+    preferredTime: j.preferredTime,
+    vinNumber: j.vinNumber,
+    status: j.status,
+    photos: j.photos,
+    assignedMechanicName: j.assignedMechanicName,
+    serviceNotes: j.serviceNotes,
+    submittedAt: j.submittedAt,
+    completedAt: (j as any).completedAt,
+  }
+}
 
 function MyBookingsContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const isNewBooking = searchParams.get('new') === '1'
   const [user, setUser] = useState<any>(null)
-  const [bookings, setBookings] = useState<Booking[]>([])
+  const [bookings, setBookings] = useState<UnifiedBooking[]>([])
   const [savedCars, setSavedCars] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [showBanner, setShowBanner] = useState(isNewBooking)
@@ -19,15 +85,32 @@ function MyBookingsContent() {
   const [refreshing, setRefreshing] = useState(false)
   const [activeTab, setActiveTab] = useState<'dashboard' | 'history'>('dashboard')
 
-  const refreshBookings = async (userId: string) => {
-    const userBookings = await getUserBookings(userId)
-    setBookings(userBookings)
+  const loadAllBookings = async (userId: string) => {
+    // Load both legacy bookings AND new multi-tenant jobs
+    const [legacyBookings, newJobs] = await Promise.all([
+      getUserBookings(userId).catch(() => [] as Booking[]),
+      getCustomerJobsAllGarages(userId).catch(() => []),
+    ])
+
+    const unified: UnifiedBooking[] = [
+      ...legacyBookings.map(legacyToUnified),
+      ...newJobs.map(jobToUnified),
+    ]
+
+    // Sort by submittedAt desc
+    unified.sort((a, b) => {
+      const aTime = a.submittedAt?.toMillis?.() || a.submittedAt?.seconds * 1000 || 0
+      const bTime = b.submittedAt?.toMillis?.() || b.submittedAt?.seconds * 1000 || 0
+      return bTime - aTime
+    })
+
+    setBookings(unified)
   }
 
   const handleRefresh = async () => {
     if (!user) return
     setRefreshing(true)
-    await refreshBookings(user.uid)
+    await loadAllBookings(user.uid)
     setRefreshing(false)
   }
 
@@ -42,12 +125,11 @@ function MyBookingsContent() {
             router.push('/')
           } else {
             setUser(currentUser)
-            const [userBookings, cars] = await Promise.all([
-              getUserBookings(currentUser.uid),
+            const [, cars] = await Promise.all([
+              loadAllBookings(currentUser.uid),
               getUserCars(currentUser.uid),
             ])
-            setBookings(userBookings)
-            setSavedCars(cars)
+            setSavedCars(cars || [])
             setLoading(false)
           }
         })
@@ -82,14 +164,23 @@ function MyBookingsContent() {
     window.location.href = '/'
   }
 
-  const handleCancelBooking = async (bookingId: string) => {
-    setCancellingId(bookingId)
+  const handleCancelBooking = async (booking: UnifiedBooking) => {
+    setCancellingId(booking.id)
     try {
-      const result = await updateBookingStatus(bookingId, 'cancelled')
-      if (result.success) {
-        setBookings(bookings.map(b =>
-          b.id === bookingId ? { ...b, status: 'cancelled' as const } : b
-        ))
+      if (booking.source === 'job' && booking.garageId) {
+        const result = await updateJobStatus(booking.garageId, booking.id, 'cancelled', user?.uid || '', user?.displayName || 'Customer')
+        if (result.success) {
+          setBookings(prev => prev.map(b =>
+            b.id === booking.id ? { ...b, status: 'cancelled' } : b
+          ))
+        }
+      } else {
+        const result = await updateBookingStatus(booking.id, 'cancelled')
+        if (result.success) {
+          setBookings(prev => prev.map(b =>
+            b.id === booking.id ? { ...b, status: 'cancelled' } : b
+          ))
+        }
       }
     } catch (err) {
       console.error('Cancel error:', err)
@@ -99,18 +190,36 @@ function MyBookingsContent() {
   }
 
   const getStatusColor = (status: string) => {
+    // New job statuses
+    const jobColors: Record<string, string> = {
+      booking_created: 'bg-yellow-100 text-yellow-800',
+      checked_in: 'bg-blue-100 text-blue-800',
+      diagnosis: 'bg-purple-100 text-purple-800',
+      awaiting_parts: 'bg-orange-100 text-orange-800',
+      repair_in_progress: 'bg-indigo-100 text-indigo-800',
+      quality_check: 'bg-teal-100 text-teal-800',
+      ready_for_pickup: 'bg-green-100 text-green-800',
+      completed: 'bg-blue-100 text-blue-800',
+      cancelled: 'bg-gray-100 text-gray-500',
+    }
+    if (jobColors[status]) return jobColors[status]
+
+    // Legacy statuses
     switch (status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800'
       case 'confirmed': return 'bg-green-100 text-green-800'
       case 'approved': return 'bg-green-100 text-green-800'
       case 'rejected': return 'bg-red-100 text-red-800'
-      case 'completed': return 'bg-blue-100 text-blue-800'
-      case 'cancelled': return 'bg-gray-100 text-gray-500'
       default: return 'bg-gray-100 text-gray-800'
     }
   }
 
   const getStatusText = (status: string) => {
+    // New job status labels
+    if (JOB_STATUS_LABELS[status as keyof typeof JOB_STATUS_LABELS]) {
+      return JOB_STATUS_LABELS[status as keyof typeof JOB_STATUS_LABELS]
+    }
+    // Legacy statuses
     switch (status) {
       case 'pending': return 'Awaiting Review'
       case 'confirmed': return 'Confirmed'
@@ -122,11 +231,17 @@ function MyBookingsContent() {
     }
   }
 
-  const canCancel = (booking: Booking) => {
+  const canCancel = (booking: UnifiedBooking) => {
+    if (booking.source === 'job') {
+      return !['completed', 'cancelled'].includes(booking.status)
+    }
     return ['confirmed', 'approved', 'pending'].includes(booking.status)
   }
 
-  const isActiveBooking = (booking: Booking) => {
+  const isActiveBooking = (booking: UnifiedBooking) => {
+    if (booking.source === 'job') {
+      return !['completed', 'cancelled'].includes(booking.status)
+    }
     return ['pending', 'confirmed', 'approved'].includes(booking.status)
   }
 
@@ -360,9 +475,9 @@ function MyBookingsContent() {
                 <div className="space-y-3">
                   {upcomingBookings.map(booking => (
                     <div key={booking.id} className="bg-white rounded-xl shadow-sm p-5">
-                      {(booking as any).bookingTag && (
+                      {booking.bookingTag && (
                         <span className="font-mono text-xs px-2 py-0.5 rounded bg-petrol-yellow/20 text-yellow-800 mb-2 inline-block">
-                          {(booking as any).bookingTag}
+                          {booking.bookingTag}
                         </span>
                       )}
                       <div className="flex justify-between items-start">
@@ -392,9 +507,19 @@ function MyBookingsContent() {
                           {booking.preferredTime.includes(':') && booking.preferredTime.length <= 5 ? formatSlotTime(booking.preferredTime) : booking.preferredTime}
                         </span>
                       </div>
-                      {(booking as any).mechanicPreference && (booking as any).mechanicPreference !== 'garage-assigns' && (
+                      {booking.garageName && (
                         <p className="text-petrol-gray text-xs mt-2">
-                          Mechanic: <span className="text-petrol-black font-medium">{getMechanicName((booking as any).mechanicPreference)}</span>
+                          Garage: <span className="text-petrol-black font-medium">{booking.garageName}</span>
+                        </p>
+                      )}
+                      {booking.assignedMechanicName && (
+                        <p className="text-petrol-gray text-xs mt-1">
+                          Mechanic: <span className="text-petrol-black font-medium">{booking.assignedMechanicName}</span>
+                        </p>
+                      )}
+                      {!booking.assignedMechanicName && booking.mechanicPreference && booking.mechanicPreference !== 'garage-assigns' && (
+                        <p className="text-petrol-gray text-xs mt-1">
+                          Mechanic: <span className="text-petrol-black font-medium">{getMechanicName(booking.mechanicPreference)}</span>
                         </p>
                       )}
 
@@ -406,7 +531,7 @@ function MyBookingsContent() {
                               <p className="text-sm text-red-700">Cancel this?</p>
                               <div className="flex space-x-2">
                                 <button
-                                  onClick={() => handleCancelBooking(booking.id!)}
+                                  onClick={() => handleCancelBooking(booking)}
                                   disabled={cancellingId === booking.id}
                                   className="px-3 py-1 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50"
                                 >
@@ -503,14 +628,14 @@ function MyBookingsContent() {
                 {bookings.map((booking) => (
                   <div key={booking.id} className={`bg-white rounded-xl shadow-sm p-5 ${booking.status === 'cancelled' ? 'opacity-60' : ''}`}>
                     {/* Booking Tag */}
-                    {(booking as any).bookingTag && (
+                    {booking.bookingTag && (
                       <div className="mb-2">
                         <span className={`font-mono text-xs px-2 py-0.5 rounded ${
                           isActiveBooking(booking)
                             ? 'bg-petrol-yellow/20 text-yellow-800'
                             : 'bg-gray-100 text-gray-600'
                         }`}>
-                          {(booking as any).bookingTag}
+                          {booking.bookingTag}
                         </span>
                       </div>
                     )}
@@ -552,18 +677,31 @@ function MyBookingsContent() {
                             : 'Just now'}
                         </p>
                       </div>
-                      {(booking as any).mechanicPreference && (
+                      {booking.garageName && (
+                        <div>
+                          <p className="text-xs text-petrol-gray">Garage</p>
+                          <p className="text-sm font-medium text-petrol-black">{booking.garageName}</p>
+                        </div>
+                      )}
+                      {(booking.assignedMechanicName || booking.mechanicPreference) && (
                         <div>
                           <p className="text-xs text-petrol-gray">Mechanic</p>
                           <p className="text-sm font-medium text-petrol-black flex items-center">
-                            {(booking as any).mechanicPreference === 'garage-assigns' ? (
+                            {booking.assignedMechanicName ? (
+                              <>
+                                <svg className="w-3.5 h-3.5 mr-1 text-petrol-green flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                                {booking.assignedMechanicName}
+                              </>
+                            ) : booking.mechanicPreference === 'garage-assigns' ? (
                               <span className="text-gray-400">Garage assigned</span>
                             ) : (
                               <>
                                 <svg className="w-3.5 h-3.5 mr-1 text-petrol-green flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                                 </svg>
-                                {getMechanicName((booking as any).mechanicPreference)}
+                                {getMechanicName(booking.mechanicPreference || '')}
                               </>
                             )}
                           </p>
@@ -579,10 +717,10 @@ function MyBookingsContent() {
                     )}
 
                     {/* Service Notes */}
-                    {(booking as any).serviceNotes && (
+                    {booking.serviceNotes && (
                       <div className="mt-3 pt-3 border-t border-gray-100">
                         <p className="text-xs text-petrol-gray">What was done</p>
-                        <p className="text-sm text-petrol-black mt-0.5 bg-blue-50 rounded-lg p-2.5">{(booking as any).serviceNotes}</p>
+                        <p className="text-sm text-petrol-black mt-0.5 bg-blue-50 rounded-lg p-2.5">{booking.serviceNotes}</p>
                       </div>
                     )}
 
@@ -614,7 +752,7 @@ function MyBookingsContent() {
                             <p className="text-sm text-red-700">Cancel this?</p>
                             <div className="flex space-x-2">
                               <button
-                                onClick={() => handleCancelBooking(booking.id!)}
+                                onClick={() => handleCancelBooking(booking)}
                                 disabled={cancellingId === booking.id}
                                 className="px-3 py-1 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50"
                               >
