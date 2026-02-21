@@ -684,6 +684,7 @@ export default function LandingPage() {
   const [displayView, setDisplayView] = useState<'customer' | 'garage'>('customer')
   const contentRef = useRef<HTMLDivElement>(null)
 
+  const [currentUser, setCurrentUser] = useState<any>(null)
   const goToBooking = () => { window.location.href = '/book' }
   const goToSignup = () => { window.location.href = '/garage-signup' }
 
@@ -717,8 +718,9 @@ export default function LandingPage() {
       try {
         const { auth } = await import('@/lib/firebase')
         if (!auth) { setCheckingAuth(false); return }
-        unsubscribe = onAuthStateChanged(auth, () => {
+        unsubscribe = onAuthStateChanged(auth, (u) => {
           if (cancelled) return
+          setCurrentUser(u)
           setCheckingAuth(false)
         })
         try {
@@ -772,6 +774,36 @@ export default function LandingPage() {
         />
 
         <div className="relative max-w-lg mx-auto px-6 pt-10 pb-10">
+
+          {/* Logged-in user quick nav */}
+          {currentUser && (
+            <div className="flex items-center justify-between bg-white/[0.06] rounded-xl px-4 py-3 mb-6 border border-white/10">
+              <div className="flex items-center space-x-2 min-w-0">
+                <div className="w-8 h-8 bg-petrol-yellow rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-petrol-black font-bold text-sm">
+                    {(currentUser.displayName || currentUser.email || '?')[0].toUpperCase()}
+                  </span>
+                </div>
+                <p className="text-white text-sm font-medium truncate">
+                  {currentUser.displayName || currentUser.phoneNumber || currentUser.email || 'User'}
+                </p>
+              </div>
+              <div className="flex items-center space-x-2 flex-shrink-0">
+                <button
+                  onClick={() => window.location.href = '/my-bookings'}
+                  className="bg-petrol-green text-petrol-black font-semibold text-xs px-3 py-2 rounded-lg hover:brightness-110 transition-all"
+                >
+                  My Bookings
+                </button>
+                <button
+                  onClick={() => window.location.href = '/book'}
+                  className="bg-petrol-yellow text-petrol-black font-semibold text-xs px-3 py-2 rounded-lg hover:brightness-110 transition-all"
+                >
+                  Book
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Logo */}
           <div className="text-center mb-6">
