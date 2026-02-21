@@ -7,7 +7,8 @@ import { onAuthStateChanged, signOut, User } from 'firebase/auth'
 import { getAllBookings, updateBookingStatus, addServiceNotes, rescheduleBooking, Booking, formatSlotTime, generateTimeSlots, getMechanicName } from '@/lib/bookings'
 import { sendBookingEmail, getBookingConfirmationEmailHtml, getBookingRejectionEmailHtml, getServiceCompletedEmailHtml, getBookingRescheduledEmailHtml } from '@/lib/email'
 import { isAdmin } from '@/lib/admin'
-import { getAllGarages, updateGarageProfile, GarageProfile } from '@/lib/garages'
+import { isSuperAdmin } from '@/lib/roles'
+import { getAllGarages, updateGarageProfile, GarageProfile, getUserProfile } from '@/lib/garages'
 
 type DashboardView = 'bookings' | 'garages'
 type FilterTab = 'upcoming' | 'completed' | 'cancelled' | 'all'
@@ -61,12 +62,19 @@ export default function DashboardPage() {
     const init = async () => {
       try {
         const { auth } = await import('@/lib/firebase')
-        unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
           clearTimeout(timeout)
           if (currentUser) {
-            if (!isAdmin(currentUser.email)) {
-              setNotAuthorized(true)
-              setPageReady(true)
+            // Only super admins (Petrol Goons team) can access this page
+            if (!isSuperAdmin(currentUser.email)) {
+              // Check if they're a garage owner — redirect them to their own dashboard
+              const profile = await getUserProfile(currentUser.uid)
+              if (profile?.garageId) {
+                window.location.href = '/garage'
+                return
+              }
+              // Regular customer — send to their bookings
+              window.location.href = '/my-bookings'
               return
             }
             setUser(currentUser)

@@ -186,10 +186,10 @@ export default function GarageSignupPage() {
             </p>
             <div className="mt-6 space-y-3">
               <button
-                onClick={() => window.location.href = '/dashboard'}
+                onClick={() => window.location.href = '/garage'}
                 className="w-full bg-petrol-yellow text-petrol-black font-bold py-3 rounded-xl hover:brightness-110 transition-all"
               >
-                Go to Dashboard
+                Go to Your Garage Dashboard
               </button>
               <button
                 onClick={() => window.location.href = '/'}
