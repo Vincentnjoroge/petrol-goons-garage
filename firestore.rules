@@ -109,6 +109,42 @@ service cloud.firestore {
       allow read, update: if isSuperAdmin();
     }
 
+    // ==============================
+    // COMMUNITY FEED (Global)
+    // ==============================
+    match /posts/{postId} {
+      // Anyone can read posts (public feed)
+      allow read: if true;
+      // Only signed-in users can create posts
+      allow create: if request.auth != null
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.content.size() > 0
+        && request.resource.data.content.size() <= 500;
+      // Author or super admin can update (likes, content)
+      allow update: if request.auth != null && (
+        resource.data.authorId == request.auth.uid ||
+        isSuperAdmin()
+      );
+      // Author or super admin can delete
+      allow delete: if request.auth != null && (
+        resource.data.authorId == request.auth.uid ||
+        isSuperAdmin()
+      );
+
+      // Comments subcollection
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if request.auth != null
+          && request.resource.data.authorId == request.auth.uid
+          && request.resource.data.content.size() > 0
+          && request.resource.data.content.size() <= 300;
+        allow delete: if request.auth != null && (
+          resource.data.authorId == request.auth.uid ||
+          isSuperAdmin()
+        );
+      }
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

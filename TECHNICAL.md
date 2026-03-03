@@ -1,6 +1,6 @@
 # TECHNICAL.md - Petrol Goons Garage
 
-> Last updated: February 2026
+> Last updated: March 2026 — V2
 
 ## Technology Stack
 
@@ -259,9 +259,67 @@ npm run lint:fix
 - Server-side rendering for initial page load
 - PWA manifest for "Add to Home Screen" on Android
 
-## Future Enhancements (Not in V1)
+## V2 Features (March 2026)
 
-### Phase 2
+### 1. Dark / Light Mode Theme Toggle
+- **Strategy**: CSS custom properties + `html.light` class toggle
+- **Storage**: `localStorage` key `pg-theme` (`'dark'` | `'light'`)
+- **Files**:
+  - `tailwind.config.js` — `darkMode: 'class'` enabled
+  - `app/globals.css` — CSS variables `:root` (dark) and `html.light` overrides
+  - `app/components/ThemeProvider.tsx` — React context, reads/writes localStorage
+  - `app/components/ThemeToggle.tsx` — Floating sun/moon button (bottom-right)
+  - `app/layout.tsx` — Wraps with `<ThemeProvider>`, renders `<ThemeToggle>`
+
+### 2. Community Feed (`/feed`)
+- **Route**: `/feed`
+- **Files**: `app/feed/page.tsx`, `lib/feed.ts`
+- **Firestore collection**: `/posts/{postId}` with `/comments` subcollection
+- **Features**:
+  - Create posts (text + up to 4 photos) — authenticated users only
+  - 7 post tags: My Build, Service Tip, For Sale, Event, Spotted, Question, General
+  - Like / unlike (optimistic update)
+  - Inline comments with real-time loading
+  - Image lightbox on tap
+  - Filter strip by tag
+  - Paginated feed (15 posts/page)
+  - Image upload to Firebase Storage at `feed/{uid}/{timestamp}_{filename}`
+  - Share via Web Share API
+  - Sign-in prompt for unauthenticated users
+
+### Feed Data Model
+
+#### Posts (`/posts/{postId}`)
+```typescript
+{
+  authorId: string          // Firebase UID
+  authorName: string
+  authorPhoto?: string      // Firebase Auth photoURL
+  content: string           // Max 500 chars
+  mediaUrls: string[]       // Firebase Storage URLs (max 4)
+  tag: PostTag              // 'my-build' | 'service-tip' | 'for-sale' | 'event' | 'spotted' | 'question' | 'general'
+  likes: string[]           // Array of UIDs
+  commentCount: number      // Denormalized count
+  createdAt: Timestamp
+  updatedAt: Timestamp
+}
+```
+
+#### Comments (`/posts/{postId}/comments/{commentId}`)
+```typescript
+{
+  postId: string
+  authorId: string
+  authorName: string
+  authorPhoto?: string
+  content: string           // Max 300 chars
+  createdAt: Timestamp
+}
+```
+
+## Future Enhancements (Not in V1/V2)
+
+### Phase 3
 - Individual mechanic profiles and schedules
 - SMS notifications (Africa's Talking API)
 - Customer reviews and ratings

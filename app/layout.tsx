@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next'
 import { Analytics } from '@vercel/analytics/react'
 import './globals.css'
 import NetworkStatus from './components/NetworkStatus'
+import { ThemeProvider } from './components/ThemeProvider'
+import ThemeToggle from './components/ThemeToggle'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://petrol-goons-garage.vercel.app'),
@@ -52,9 +54,12 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="Petrol Goons" />
       </head>
       <body className="antialiased">
-        <NetworkStatus />
-        {children}
-        <Analytics />
+        <ThemeProvider>
+          <NetworkStatus />
+          {children}
+          <ThemeToggle />
+          <Analytics />
+        </ThemeProvider>
       </body>
     </html>
   )
