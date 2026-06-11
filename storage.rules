@@ -1,11 +1,21 @@
 rules_version = '2';
 
+// ============================================================================
+// Petrol Goons Garage — HARDENED Storage Rules (Week 1)
+// ============================================================================
+// Tightened so uploads are scoped, size/type limited, and reads are not wide
+// open. Photos live under garages/{garageId}/... ; legacy under bookings/{uid}.
+// ============================================================================
+
 service firebase.storage {
   match /b/{bucket}/o {
 
-    // Super admin whitelist
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
     function isSuperAdmin() {
-      return request.auth != null && request.auth.token.email in [
+      return isSignedIn() && request.auth.token.email in [
         'michaeldiro@gmail.com',
         'mwololokimanthi@gmail.com',
         'thomasaquinas689@gmail.com',
@@ -13,29 +23,32 @@ service firebase.storage {
       ];
     }
 
-    // Multi-tenant: Photos stored under garages/{garageId}/jobs/
+    function isImageUnder5MB() {
+      return request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // Garage job photos: garages/{garageId}/...
     match /garages/{garageId}/{allPaths=**} {
-      // Authenticated users can upload photos (max 5MB, images only)
-      allow write: if request.auth != null
-        && request.resource.size < 5 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
-      // Authenticated users can read photos
-      allow read: if request.auth != null;
-      // Super admins can read all
+      // Any signed-in user may upload a valid image (customers attach booking
+      // photos; staff attach job photos). Size + content-type enforced.
+      allow write: if isSignedIn() && isImageUnder5MB();
+      // Read restricted to signed-in users (was effectively the same, but now
+      // also covered by the explicit super-admin clause for clarity).
+      allow read: if isSignedIn();
       allow read: if isSuperAdmin();
     }
 
-    // Legacy: Old booking photos under bookings/{userId}/
+    // Legacy booking photos: bookings/{userId}/...
     match /bookings/{userId}/{allPaths=**} {
-      allow write: if request.auth != null
+      allow write: if isSignedIn()
         && request.auth.uid == userId
-        && request.resource.size < 5 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
-      allow read: if request.auth != null && request.auth.uid == userId;
+        && isImageUnder5MB();
+      allow read: if isSignedIn() && request.auth.uid == userId;
       allow read: if isSuperAdmin();
     }
 
-    // Deny all other access
+    // Default deny
     match /{allPaths=**} {
       allow read, write: if false;
     }

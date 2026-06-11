@@ -17,6 +17,15 @@ import { Timestamp } from 'firebase/firestore'
 
 export type UserRole = 'super_admin' | 'garage_owner' | 'garage_manager' | 'mechanic' | 'reception' | 'customer'
 
+export type UserRole =
+  | 'super_admin'
+  | 'garage_owner'
+  | 'garage_manager'
+  | 'mechanic'
+  | 'reception'
+  | 'independent_specialist'   // ← Add this line
+  | 'customer'
+
 export interface UserProfile {
   id?: string
   uid: string
