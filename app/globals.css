@@ -2,271 +2,36 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ===== THEME VARIABLES ===== */
-
-/* Dark mode — default */
 :root {
-  --bg-primary: #0A0A0A;
-  --bg-surface: rgba(255, 255, 255, 0.04);
-  --bg-surface-strong: rgba(255, 255, 255, 0.08);
-  --bg-border: rgba(255, 255, 255, 0.08);
-  --text-primary: #FFFFFF;
-  --text-secondary: #9CA3AF;
-  --text-muted: #6B7280;
-  --text-faint: #374151;
-  --input-bg: rgba(255, 255, 255, 0.06);
-  --input-border: rgba(255, 255, 255, 0.12);
-  --shadow-card: none;
-}
-
-/* Light mode */
-html.light {
-  --bg-primary: #F5F4F0;
-  --bg-surface: #FFFFFF;
-  --bg-surface-strong: #F3F4F6;
-  --bg-border: #E5E7EB;
-  --text-primary: #0A0A0A;
-  --text-secondary: #374151;
-  --text-muted: #6B7280;
-  --text-faint: #9CA3AF;
-  --input-bg: #FFFFFF;
-  --input-border: #D1D5DB;
-  --shadow-card: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --foreground-rgb: 10, 10, 10;
+  --background-rgb: 255, 255, 255;
 }
 
 body {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-rgb));
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* ===== LIGHT MODE OVERRIDES ===== */
-
-/* Page background */
-html.light .bg-petrol-black,
-html.light .min-h-screen {
-  background-color: var(--bg-primary) !important;
-}
-
-/* Text overrides */
-html.light .text-white {
-  color: var(--text-primary) !important;
-}
-html.light .text-gray-300 {
-  color: #374151 !important;
-}
-html.light .text-gray-400 {
-  color: #4B5563 !important;
-}
-html.light .text-gray-500 {
-  color: #6B7280 !important;
-}
-html.light .text-gray-600 {
-  color: #9CA3AF !important;
-}
-html.light .text-gray-700 {
-  color: #6B7280 !important;
-}
-
-/* Card/surface overrides */
-html.light .bg-white\/5,
-html.light .bg-white\/\[0\.04\],
-html.light .bg-white\/\[0\.03\] {
-  background-color: #FFFFFF !important;
-  box-shadow: var(--shadow-card) !important;
-}
-html.light .bg-white\/\[0\.06\],
-html.light .bg-white\/\[0\.08\] {
-  background-color: #F9FAFB !important;
-  box-shadow: var(--shadow-card) !important;
-}
-
-/* Border overrides */
-html.light .border-white\/5,
-html.light .border-white\/\[0\.05\] {
-  border-color: #E5E7EB !important;
-}
-html.light .border-white\/10 {
-  border-color: #D1D5DB !important;
-}
-html.light .border-white\/\[0\.10\] {
-  border-color: #D1D5DB !important;
-}
-html.light .border-white\/15 {
-  border-color: #E5E7EB !important;
-}
-
-/* Input field overrides */
-html.light input,
-html.light textarea,
-html.light select {
-  background-color: var(--input-bg) !important;
-  border-color: var(--input-border) !important;
-  color: var(--text-primary) !important;
-}
-html.light input::placeholder,
-html.light textarea::placeholder {
-  color: #9CA3AF !important;
-}
-
-/* Toggle container in light mode */
-html.light .toggle-3d-container {
-  background-color: #F3F4F6 !important;
-  border-color: #E5E7EB !important;
-}
-
-/* Speed line tint in light mode */
-html.light .speed-line {
-  opacity: 0.5;
-}
-
-/* Racing stripe accent bar — used on headers */
-.racing-stripe {
-  height: 4px;
-  background: linear-gradient(
-    90deg,
-    #ffffff 0%,
-    #ffffff 20%,
-    #C41E3A 20%,
-    #C41E3A 40%,
-    #1B2A4A 40%,
-    #1B2A4A 60%,
-    #FDB913 60%,
-    #FDB913 80%,
-    #00B4D8 80%,
-    #00B4D8 100%
-  );
-}
-
-/* Diagonal racing stripe (like the logo) */
-.racing-stripe-diagonal {
-  height: 6px;
-  background: linear-gradient(
-    -5deg,
-    #ffffff 0%,
-    #ffffff 20%,
-    #C41E3A 20%,
-    #C41E3A 40%,
-    #1B2A4A 40%,
-    #1B2A4A 60%,
-    #FDB913 60%,
-    #FDB913 80%,
-    #00B4D8 80%,
-    #00B4D8 100%
-  );
-}
-
-/* Brand text style — italic bold like the logo */
-.brand-text {
-  font-style: italic;
-  font-weight: 900;
-  letter-spacing: -0.02em;
-}
-
-/* Speed-line section divider — F1-inspired */
-.speed-line {
-  height: 1px;
-  background: linear-gradient(90deg, transparent 0%, rgba(57, 255, 20, 0.3) 30%, rgba(253, 185, 19, 0.3) 70%, transparent 100%);
-}
-
-/* Service card hover — subtle lift */
-.service-card {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  will-change: transform;
-}
-.service-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-.service-card:active {
-  transform: scale(0.98);
-}
-
-/* Checkmark animation for booking confirmation */
-@keyframes confirm-check {
-  0% { transform: scale(0); opacity: 0; }
-  50% { transform: scale(1.15); opacity: 1; }
-  100% { transform: scale(1); opacity: 1; }
-}
-.confirm-check {
-  animation: confirm-check 0.5s ease-out forwards;
-}
-
-/* ===== 3D Toggle Effects ===== */
-
-/* Toggle container hover lift */
-.toggle-3d-container {
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  will-change: transform;
-}
-.toggle-3d-container:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-}
-
-/* Toggle bounce on click */
-.toggle-bounce {
-  animation: toggle-bounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-@keyframes toggle-bounce {
-  0% { transform: scale(1); }
-  30% { transform: scale(0.92); }
-  60% { transform: scale(1.05); }
-  100% { transform: scale(1); }
-}
-
-/* Pulse ring that expands from the knob */
-.toggle-pulse {
-  animation: toggle-pulse 0.6s ease-out forwards;
-}
-@keyframes toggle-pulse {
-  0% { transform: scale(1); opacity: 0.8; }
-  100% { transform: scale(2.2); opacity: 0; }
-}
-
-/* Fuel drip animation */
-.fuel-drip {
-  animation: fuel-drip 0.8s ease-in forwards;
-}
-@keyframes fuel-drip {
-  0% { transform: rotate(45deg) translateY(0); opacity: 1; }
-  40% { transform: rotate(45deg) translateY(6px); opacity: 1; }
-  100% { transform: rotate(45deg) translateY(18px) scale(0.5); opacity: 0; }
-}
-
-/* ===== View Transition Effects ===== */
-
-/* Smooth crossfade + subtle slide */
-.view-transition {
-  transition: opacity 0.25s ease, transform 0.25s ease;
-  will-change: opacity, transform;
-}
-.view-enter {
-  opacity: 1;
-  transform: translateY(0);
-}
-.view-exit {
-  opacity: 0;
-  transform: translateY(8px);
-}
-
-/* ===== Toggle track hover glow ===== */
-.toggle-track {
-  transition: box-shadow 0.3s ease, border-color 0.3s ease;
-}
-.toggle-track:hover {
-  filter: brightness(1.1);
-}
-.toggle-track:active {
-  transform: scale(0.96);
-}
-
-/* Safe area bottom padding for bottom nav on notched phones */
+/* Safe area for bottom navigation on notched phones */
 .safe-area-bottom {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Hide scrollbar but keep scroll functionality */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

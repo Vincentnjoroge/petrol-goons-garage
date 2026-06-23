@@ -1,0 +1,56 @@
+rules_version = '2';
+
+// ============================================================================
+// Petrol Goons Garage — HARDENED Storage Rules (Week 1)
+// ============================================================================
+// Tightened so uploads are scoped, size/type limited, and reads are not wide
+// open. Photos live under garages/{garageId}/... ; legacy under bookings/{uid}.
+// ============================================================================
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && request.auth.token.email in [
+        'michaeldiro@gmail.com',
+        'mwololokimanthi@gmail.com',
+        'thomasaquinas689@gmail.com',
+        'viny.njoroge1@gmail.com'
+      ];
+    }
+
+    function isImageUnder5MB() {
+      return request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // Garage job photos: garages/{garageId}/...
+    match /garages/{garageId}/{allPaths=**} {
+      // Any signed-in user may upload a valid image (customers attach booking
+      // photos; staff attach job photos). Size + content-type enforced.
+      allow write: if isSignedIn() && isImageUnder5MB();
+      // Read restricted to signed-in users (was effectively the same, but now
+      // also covered by the explicit super-admin clause for clarity).
+      allow read: if isSignedIn();
+      allow read: if isSuperAdmin();
+    }
+
+    // Legacy booking photos: bookings/{userId}/...
+    match /bookings/{userId}/{allPaths=**} {
+      allow write: if isSignedIn()
+        && request.auth.uid == userId
+        && isImageUnder5MB();
+      allow read: if isSignedIn() && request.auth.uid == userId;
+      allow read: if isSuperAdmin();
+    }
+
+    // Default deny
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

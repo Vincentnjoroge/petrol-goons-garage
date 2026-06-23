@@ -1,0 +1,269 @@
+rules_version = '2';
+
+// ============================================================================
+// Petrol Goons Garage — HARDENED Firestore Rules (Week 1 Security Foundation)
+// ============================================================================
+// Trust model: the app is fully client-driven (no Admin SDK). These rules ARE
+// the backend. Every privilege boundary must be enforced here.
+//
+// Key principles enforced:
+//   1. role + garageId are NOT self-writable (no privilege escalation).
+//   2. A user becomes garage_owner ONLY by claiming a garage they created.
+//   3. A user becomes staff ONLY via an invite addressed to their email.
+//   4. Garage approval (status) is super-admin only — owners can't self-approve.
+//   5. Tenant isolation: a garage can only touch its own subcollections.
+// ============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- Identity helpers ----------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && request.auth.token.email in [
+        'michaeldiro@gmail.com',
+        'mwololokimanthi@gmail.com',
+        'thomasaquinas689@gmail.com',
+        'viny.njoroge1@gmail.com'
+      ];
+    }
+
+    function userData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function userDocExists() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    // Staff of a garage = their user doc's garageId matches
+    function isGarageStaff(garageId) {
+      return isSignedIn() && userDocExists() && userData().garageId == garageId;
+    }
+
+    // Owner = garageId matches AND role is garage_owner
+    function isGarageOwner(garageId) {
+      return isSignedIn() && userDocExists()
+        && userData().garageId == garageId
+        && userData().role == 'garage_owner';
+    }
+
+    function garageOwnerId(garageId) {
+      return get(/databases/$(database)/documents/garages/$(garageId)).data.ownerId;
+    }
+
+    function inviteExists(garageId, email) {
+      return exists(/databases/$(database)/documents/garages/$(garageId)/invites/$(email));
+    }
+
+    function inviteRole(garageId, email) {
+      return get(/databases/$(database)/documents/garages/$(garageId)/invites/$(email)).data.role;
+    }
+
+    function conversationCustomerId(garageId, conversationId) {
+      return get(/databases/$(database)/documents/garages/$(garageId)/conversations/$(conversationId)).data.customerId;
+    }
+
+    // ==============================
+    // USERS (Global) — privilege boundary
+    // ==============================
+    match /users/{userId} {
+      allow read: if isSignedIn() && request.auth.uid == userId;
+      allow read: if isSuperAdmin();
+
+      // SIGN-UP: create only your own doc, forced to 'customer', no garage.
+      allow create: if isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.role == 'customer'
+        && (!('garageId' in request.resource.data) || request.resource.data.garageId == null);
+
+      // PROFILE UPDATE: role + garageId are immutable here.
+      allow update: if isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.garageId == resource.data.garageId;
+
+      // OWNER BOOTSTRAP: customer -> garage_owner, only for a garage you created.
+      allow update: if isSignedIn()
+        && request.auth.uid == userId
+        && resource.data.role == 'customer'
+        && request.resource.data.role == 'garage_owner'
+        && request.resource.data.garageId != null
+        && garageOwnerId(request.resource.data.garageId) == request.auth.uid;
+
+      // STAFF INVITE ACCEPTANCE: customer -> staff role, only if invited by email.
+      allow update: if isSignedIn()
+        && request.auth.uid == userId
+        && resource.data.role == 'customer'
+        && request.resource.data.role in ['garage_manager', 'mechanic', 'reception']
+        && request.resource.data.garageId != null
+        && inviteExists(request.resource.data.garageId, request.auth.token.email)
+        && inviteRole(request.resource.data.garageId, request.auth.token.email) == request.resource.data.role;
+
+      // SUPER ADMIN: full control (role assignment, recovery, etc.)
+      allow write: if isSuperAdmin();
+    }
+
+    // ==============================
+    // GARAGES (Top-level)
+    // ==============================
+    match /garages/{garageId} {
+      // CREATE: must set self as owner, must start 'pending' (no self-approval).
+      allow create: if isSignedIn()
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.status == 'pending';
+
+      // READ: any signed-in user (booking discovery).
+      allow read: if isSignedIn();
+
+      // UPDATE: owner may edit profile, but cannot change status or ownerId.
+      allow update: if isGarageOwner(garageId)
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.ownerId == resource.data.ownerId;
+
+      // SUPER ADMIN: full control incl. approval (status changes) + delete.
+      allow read, write: if isSuperAdmin();
+
+      // ---------- STAFF ROSTER ----------
+      match /staff/{staffId} {
+        allow read, write: if isGarageOwner(garageId);
+        allow read: if isGarageStaff(garageId);
+        allow read: if isSuperAdmin();
+      }
+
+      // ---------- STAFF INVITES (doc id = invitee email) ----------
+      match /invites/{inviteEmail} {
+        allow read, write: if isGarageOwner(garageId);
+        // Invitee can read their own invite (to accept it)
+        allow read: if isSignedIn() && request.auth.token.email == inviteEmail;
+        allow read: if isSuperAdmin();
+      }
+
+      // ---------- JOBS ----------
+      match /jobs/{jobId} {
+        allow read: if isGarageStaff(garageId);
+        allow create, update: if isGarageStaff(garageId);
+        // Customer: read own jobs; create own job; cancel own job only.
+        allow read: if isSignedIn() && resource.data.customerId == request.auth.uid;
+        allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
+        allow update: if isSignedIn()
+          && resource.data.customerId == request.auth.uid
+          && request.resource.data.status == 'cancelled';
+        allow read: if isSuperAdmin();
+      }
+
+      // ---------- CUSTOMERS ----------
+      match /customers/{customerId} {
+        allow read, write: if isGarageStaff(garageId);
+        allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+        // Customer may create only their own customer record.
+        allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+        allow read: if isSuperAdmin();
+      }
+
+      // ---------- ACTIVITY LOG ----------
+      match /activity/{logId} {
+        allow read, create: if isGarageStaff(garageId);
+        allow read: if isSuperAdmin();
+      }
+
+      // ---------- SERVICES ----------
+      match /services/{serviceId} {
+        allow read, write: if isGarageOwner(garageId);
+        allow read: if isGarageStaff(garageId);
+        allow read: if isSignedIn();
+        allow read: if isSuperAdmin();
+      }
+
+      // ---------- REVIEWS ----------
+      match /reviews/{reviewId} {
+        allow read: if isGarageStaff(garageId);
+        allow read: if isSignedIn() && resource.data.isPublic == true;
+        allow read: if isSignedIn() && resource.data.customerId == request.auth.uid;
+        allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
+        allow update: if isGarageOwner(garageId);
+        allow read: if isSuperAdmin();
+      }
+
+      // ---------- CONVERSATIONS (Chat) ----------
+      match /conversations/{conversationId} {
+        allow read, write: if isGarageStaff(garageId);
+        allow read: if isSignedIn() && resource.data.customerId == request.auth.uid;
+        allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
+        allow update: if isSignedIn() && resource.data.customerId == request.auth.uid;
+        allow read, write: if isSuperAdmin();
+
+        match /messages/{messageId} {
+          allow read: if isGarageStaff(garageId);
+          allow read: if isSignedIn()
+            && conversationCustomerId(garageId, conversationId) == request.auth.uid;
+          allow read: if isSuperAdmin();
+
+          // Sender can't be spoofed; must be staff or the thread's customer.
+          // Messages are create-only (immutable).
+          allow create: if isSignedIn()
+            && request.resource.data.senderId == request.auth.uid
+            && (
+              isGarageStaff(garageId)
+              || conversationCustomerId(garageId, conversationId) == request.auth.uid
+            );
+        }
+      }
+    }
+
+    // ==============================
+    // COLLECTION GROUP: conversations (customer cross-garage inbox)
+    // ==============================
+    match /{path=**}/conversations/{conversationId} {
+      allow read: if isSignedIn() && resource.data.customerId == request.auth.uid;
+    }
+
+    // ==============================
+    // LEGACY bookings
+    // ==============================
+    match /bookings/{bookingId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'cancelled';
+      allow read, update: if isSuperAdmin();
+    }
+
+    // ==============================
+    // COMMUNITY FEED (Global)
+    // ==============================
+    match /posts/{postId} {
+      allow read: if true;
+      allow create: if isSignedIn()
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.content.size() > 0
+        && request.resource.data.content.size() <= 500;
+      allow update: if isSignedIn() && (
+        resource.data.authorId == request.auth.uid || isSuperAdmin()
+      );
+      allow delete: if isSignedIn() && (
+        resource.data.authorId == request.auth.uid || isSuperAdmin()
+      );
+
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isSignedIn()
+          && request.resource.data.authorId == request.auth.uid
+          && request.resource.data.content.size() > 0
+          && request.resource.data.content.size() <= 300;
+        allow delete: if isSignedIn() && (
+          resource.data.authorId == request.auth.uid || isSuperAdmin()
+        );
+      }
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
