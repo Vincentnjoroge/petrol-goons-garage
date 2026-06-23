@@ -1,11 +1,25 @@
 rules_version = '2';
 
+// ============================================================================
+// Petrol Goons Garage — HARDENED Firestore Rules (Week 1 + Specialists)
+// ============================================================================
+// Trust model: client-driven app, no Admin SDK. Rules ARE the backend.
+//
+// Account types: customer | garage_owner/garage_manager/mechanic/reception
+//                | independent_specialist | super_admin
+//
+// Conversations are TOP-LEVEL and pair any two parties:
+//   customer↔garage, customer↔specialist, garage↔specialist.
+// Access = you're a listed participant UID, OR you're staff of the thread's garageId.
+// ============================================================================
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Super Admin email whitelist (Petrol Goons platform team)
+    function isSignedIn() { return request.auth != null; }
+
     function isSuperAdmin() {
-      return request.auth != null && request.auth.token.email in [
+      return isSignedIn() && request.auth.token.email in [
         'michaeldiro@gmail.com',
         'mwololokimanthi@gmail.com',
         'thomasaquinas689@gmail.com',
@@ -13,97 +27,199 @@ service cloud.firestore {
       ];
     }
 
-    // Check if user belongs to a garage
+    function userData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function userDocExists() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
     function isGarageStaff(garageId) {
-      return request.auth != null
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.garageId == garageId;
+      return isSignedIn() && userDocExists() && userData().garageId == garageId;
+    }
+    function isGarageOwner(garageId) {
+      return isSignedIn() && userDocExists()
+        && userData().garageId == garageId
+        && userData().role == 'garage_owner';
+    }
+    function garageOwnerId(garageId) {
+      return get(/databases/$(database)/documents/garages/$(garageId)).data.ownerId;
+    }
+    function inviteExists(garageId, email) {
+      return exists(/databases/$(database)/documents/garages/$(garageId)/invites/$(email));
+    }
+    function inviteRole(garageId, email) {
+      return get(/databases/$(database)/documents/garages/$(garageId)/invites/$(email)).data.role;
+    }
+    function specialistExists(uid) {
+      return exists(/databases/$(database)/documents/specialists/$(uid));
     }
 
-    // Check if user is garage owner
-    function isGarageOwner(garageId) {
-      return request.auth != null
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.garageId == garageId
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'garage_owner';
+    // Conversation membership check (participant UID OR staff of its garage)
+    function convoData(cid) {
+      return get(/databases/$(database)/documents/conversations/$(cid)).data;
+    }
+    function isConvoMember(data) {
+      return (request.auth.uid in data.participants)
+        || (data.get('garageId', null) != null && isGarageStaff(data.get('garageId', null)));
     }
 
     // ==============================
-    // USERS COLLECTION (Global)
+    // USERS (Global) — privilege boundary
     // ==============================
     match /users/{userId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null && request.auth.uid == userId;
-      allow update: if request.auth != null && request.auth.uid == userId;
-      allow read, update: if isSuperAdmin();
-      allow update: if request.auth != null;
+      allow read: if isSignedIn() && request.auth.uid == userId;
+      allow read: if isSuperAdmin();
+
+      // SIGN-UP: own doc, forced 'customer', no garage.
+      allow create: if isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.role == 'customer'
+        && (!('garageId' in request.resource.data) || request.resource.data.garageId == null);
+
+      // PROFILE UPDATE: role + garageId immutable.
+      allow update: if isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.garageId == resource.data.garageId;
+
+      // OWNER BOOTSTRAP: customer -> garage_owner for a garage you created.
+      allow update: if isSignedIn()
+        && request.auth.uid == userId
+        && resource.data.role == 'customer'
+        && request.resource.data.role == 'garage_owner'
+        && request.resource.data.garageId != null
+        && garageOwnerId(request.resource.data.garageId) == request.auth.uid;
+
+      // STAFF INVITE ACCEPTANCE: customer -> staff role, only if invited by email.
+      allow update: if isSignedIn()
+        && request.auth.uid == userId
+        && resource.data.role == 'customer'
+        && request.resource.data.role in ['garage_manager', 'mechanic', 'reception']
+        && request.resource.data.garageId != null
+        && inviteExists(request.resource.data.garageId, request.auth.token.email)
+        && inviteRole(request.resource.data.garageId, request.auth.token.email) == request.resource.data.role;
+
+      // SPECIALIST SELF-REGISTRATION: customer -> independent_specialist.
+      // Requires the /specialists/{uid} profile to already exist; garageId stays null.
+      allow update: if isSignedIn()
+        && request.auth.uid == userId
+        && resource.data.role == 'customer'
+        && request.resource.data.role == 'independent_specialist'
+        && request.resource.data.garageId == null
+        && specialistExists(userId);
+
+      allow write: if isSuperAdmin();
     }
 
     // ==============================
-    // GARAGES COLLECTION (Top-level)
+    // SPECIALISTS (Global, public profiles)
+    // ==============================
+    match /specialists/{specialistId} {
+      // Public can read APPROVED specialists; owner can always read their own.
+      allow read: if isSignedIn()
+        && (resource.data.status == 'approved' || request.auth.uid == specialistId);
+      allow read: if isSuperAdmin();
+
+      // Create own profile, must start 'pending' (no self-approval).
+      allow create: if isSignedIn()
+        && request.auth.uid == specialistId
+        && request.resource.data.uid == specialistId
+        && request.resource.data.status == 'pending';
+
+      // Update own profile but cannot change status (approval is super-admin only).
+      allow update: if isSignedIn()
+        && request.auth.uid == specialistId
+        && request.resource.data.status == resource.data.status;
+
+      // Super admin approves / suspends.
+      allow write: if isSuperAdmin();
+    }
+
+    // ==============================
+    // GARAGES (Top-level)
     // ==============================
     match /garages/{garageId} {
-      allow create: if request.auth != null;
-      allow read: if request.auth != null;
-      allow update: if isGarageOwner(garageId);
-      allow read, update: if isSuperAdmin();
+      allow create: if isSignedIn()
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.status == 'pending';
+      allow read: if isSignedIn();
+      allow update: if isGarageOwner(garageId)
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.ownerId == resource.data.ownerId;
+      allow read, write: if isSuperAdmin();
 
-      // STAFF
       match /staff/{staffId} {
         allow read, write: if isGarageOwner(garageId);
         allow read: if isGarageStaff(garageId);
         allow read: if isSuperAdmin();
-        allow create: if request.auth != null;
       }
-
-      // JOBS
+      match /invites/{inviteEmail} {
+        allow read, write: if isGarageOwner(garageId);
+        allow read: if isSignedIn() && request.auth.token.email == inviteEmail;
+        allow read: if isSuperAdmin();
+      }
       match /jobs/{jobId} {
         allow read: if isGarageStaff(garageId);
         allow create, update: if isGarageStaff(garageId);
-        allow read: if request.auth != null && resource.data.customerId == request.auth.uid;
-        allow create: if request.auth != null && request.resource.data.customerId == request.auth.uid;
+        allow read: if isSignedIn() && resource.data.customerId == request.auth.uid;
+        allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
+        allow update: if isSignedIn()
+          && resource.data.customerId == request.auth.uid
+          && request.resource.data.status == 'cancelled';
         allow read: if isSuperAdmin();
       }
-
-      // CUSTOMERS
       match /customers/{customerId} {
         allow read, write: if isGarageStaff(garageId);
-        allow read: if request.auth != null && resource.data.userId == request.auth.uid;
-        allow create: if request.auth != null;
+        allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+        allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
         allow read: if isSuperAdmin();
       }
-
-      // ACTIVITY LOG
       match /activity/{logId} {
-        allow read, write: if isGarageStaff(garageId);
-        allow create: if request.auth != null;
+        allow read, create: if isGarageStaff(garageId);
         allow read: if isSuperAdmin();
       }
-
-      // SERVICES
       match /services/{serviceId} {
         allow read, write: if isGarageOwner(garageId);
         allow read: if isGarageStaff(garageId);
-        allow read: if request.auth != null;
+        allow read: if isSignedIn();
         allow read: if isSuperAdmin();
       }
-
-      // REVIEWS
       match /reviews/{reviewId} {
         allow read: if isGarageStaff(garageId);
-        allow read: if request.auth != null && resource.data.isPublic == true;
-        allow read: if request.auth != null && resource.data.customerId == request.auth.uid;
-        allow create: if request.auth != null && request.resource.data.customerId == request.auth.uid;
+        allow read: if isSignedIn() && resource.data.isPublic == true;
+        allow read: if isSignedIn() && resource.data.customerId == request.auth.uid;
+        allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
         allow update: if isGarageOwner(garageId);
         allow read: if isSuperAdmin();
       }
     }
 
-    // LEGACY: Old bookings collection
+    // ==============================
+    // CONVERSATIONS (Top-level, participant model)
+    // ==============================
+    match /conversations/{conversationId} {
+      allow read, update: if isSignedIn() && isConvoMember(resource.data);
+      // Creator must be a member of the conversation they're creating.
+      allow create: if isSignedIn() && isConvoMember(request.resource.data);
+      allow read, write: if isSuperAdmin();
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn() && isConvoMember(convoData(conversationId));
+        // Sender can't be spoofed; must be a member. Messages are create-only.
+        allow create: if isSignedIn()
+          && request.resource.data.senderId == request.auth.uid
+          && isConvoMember(convoData(conversationId));
+        allow read: if isSuperAdmin();
+      }
+    }
+
+    // ==============================
+    // LEGACY bookings
+    // ==============================
     match /bookings/{bookingId} {
-      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow update: if request.auth != null
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn()
         && resource.data.userId == request.auth.uid
         && request.resource.data.status == 'cancelled';
       allow read, update: if isSuperAdmin();
@@ -113,35 +229,21 @@ service cloud.firestore {
     // COMMUNITY FEED (Global)
     // ==============================
     match /posts/{postId} {
-      // Anyone can read posts (public feed)
       allow read: if true;
-      // Only signed-in users can create posts
-      allow create: if request.auth != null
+      allow create: if isSignedIn()
         && request.resource.data.authorId == request.auth.uid
         && request.resource.data.content.size() > 0
         && request.resource.data.content.size() <= 500;
-      // Author or super admin can update (likes, content)
-      allow update: if request.auth != null && (
-        resource.data.authorId == request.auth.uid ||
-        isSuperAdmin()
-      );
-      // Author or super admin can delete
-      allow delete: if request.auth != null && (
-        resource.data.authorId == request.auth.uid ||
-        isSuperAdmin()
-      );
+      allow update: if isSignedIn() && (resource.data.authorId == request.auth.uid || isSuperAdmin());
+      allow delete: if isSignedIn() && (resource.data.authorId == request.auth.uid || isSuperAdmin());
 
-      // Comments subcollection
       match /comments/{commentId} {
         allow read: if true;
-        allow create: if request.auth != null
+        allow create: if isSignedIn()
           && request.resource.data.authorId == request.auth.uid
           && request.resource.data.content.size() > 0
           && request.resource.data.content.size() <= 300;
-        allow delete: if request.auth != null && (
-          resource.data.authorId == request.auth.uid ||
-          isSuperAdmin()
-        );
+        allow delete: if isSignedIn() && (resource.data.authorId == request.auth.uid || isSuperAdmin());
       }
     }
 
