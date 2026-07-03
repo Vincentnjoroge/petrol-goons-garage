@@ -1,0 +1,52 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ------------------------------------------------------------
+    // profiles/{uid}
+    // ------------------------------------------------------------
+    match /profiles/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow create: if request.auth != null && request.auth.uid == uid;
+
+      // Allow updates to your own doc, but block flipping `role` once it's
+      // already set (mirrors the "only allow setting once" SQL guard).
+      allow update: if request.auth != null
+                    && request.auth.uid == uid
+                    && (
+                      resource.data.role == null ||
+                      request.resource.data.role == resource.data.role
+                    );
+    }
+
+    // ------------------------------------------------------------
+    // garages/{garageId}
+    // ------------------------------------------------------------
+    match /garages/{garageId} {
+      // Public read for verified garages; owners can always read their own
+      allow read: if resource.data.isVerified == true
+                  || (request.auth != null && request.auth.uid == resource.data.ownerId);
+
+      allow create: if request.auth != null
+                    && request.auth.uid == request.resource.data.ownerId;
+
+      allow update, delete: if request.auth != null
+                             && request.auth.uid == resource.data.ownerId;
+    }
+
+    // ------------------------------------------------------------
+    // bookings/{bookingId}
+    // ------------------------------------------------------------
+    match /bookings/{bookingId} {
+      // Car owner can access their own bookings; garage owner can access
+      // bookings tied to a garage they own (looked up via get()).
+      allow read, update, delete: if request.auth != null && (
+        request.auth.uid == resource.data.carOwnerId ||
+        request.auth.uid == get(/databases/$(database)/documents/garages/$(resource.data.garageId)).data.ownerId
+      );
+
+      allow create: if request.auth != null
+                    && request.auth.uid == request.resource.data.carOwnerId;
+    }
+  }
+}
