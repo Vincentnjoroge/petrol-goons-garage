@@ -16,33 +16,9 @@ Your customers can easily book car services online. You and your mechanics see a
 ✅ **Service History** - Track everything by VIN/chassis number
 ✅ **Mobile-First** - Works perfectly on Android phones
 
-## Quick Start
 
-### First Time Setup
 
-1. **Install dependencies**
-```bash
-npm install
-```
 
-2. **Configure Firebase & Resend**
-Follow the step-by-step guide in [SETUP.md](./SETUP.md)
-
-3. **Run locally**
-```bash
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000)
-
-### Deploy to Production
-
-```bash
-# Push to GitHub
-git push origin main
-
-# Deploy on Vercel (free)
-# Connect your GitHub repo at vercel.com
 ```
 
 ## Project Structure
@@ -95,17 +71,8 @@ git push origin main
 - **Database**: Firebase Firestore
 - **Storage**: Firebase Storage (for photos)
 - **Email**: Resend
-- **Hosting**: Vercel (free tier)
+- **Hosting**: Vercel 
 
-## Free Tier Limits
-
-Everything runs free until you grow:
-
-- **Firebase**: 50K reads, 20K writes per day
-- **Resend**: 100 emails/day (3,000/month)
-- **Vercel**: Unlimited deployments, 100GB bandwidth/month
-
-More than enough to start. Upgrade later as you scale.
 
 ## Roadmap
 
@@ -147,6 +114,4 @@ Having trouble? Check:
 
 ---
 
-Built with ❤️ for Kenya's car community
 
-**Start marketing. Start taking bookings. Start building your business.**
