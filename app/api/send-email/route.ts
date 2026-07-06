@@ -3,6 +3,13 @@ import { Resend } from 'resend'
 
 export async function POST(request: NextRequest) {
   try {
+    // Require a server secret to call this endpoint to avoid open relay from client
+    const authHeader = request.headers.get('authorization') || ''
+    const expected = process.env.EMAIL_API_SECRET || ''
+    if (!expected || !authHeader.startsWith('Bearer ') || authHeader.replace('Bearer ', '') !== expected) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { to, subject, html } = await request.json()
 
     // Validate inputs

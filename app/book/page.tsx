@@ -16,6 +16,8 @@ import {
   ConfirmationResult,
   User,
 } from 'firebase/auth'
+import { auth, storage } from '@/lib/firebase'
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { getApprovedGarages, getGarageById, getGarageMechanics } from '@/lib/garages'
 import { createJob, generateTimeSlots, formatSlotTime, getBookedSlots, isSunday } from '@/lib/jobs'
 import { getOrCreateGarageCustomer } from '@/lib/garages'
@@ -256,73 +258,62 @@ function BookingPageContent() {
         }
       }
 
-      const result = await createJob(selectedGarage.id, {
-        customerId: user.uid,
-        customerName,
-        customerEmail,
-        customerPhone,
-        vinNumber: formData.vinNumber.trim() || undefined,
-        services,
-        otherService: formData.otherService.trim() || undefined,
-        description: formData.description.trim() || undefined,
-        preferredDate: formData.preferredDate,
-        preferredTime: formData.preferredTime,
-        assignedMechanicId: assignedMechanicId || undefined,
-        assignedMechanicName: assignedMechanicName || undefined,
-        createdBy: user.uid,
-        photos: photos.length > 0 ? photos : undefined,
-      })
+      // Use server-side transactional booking endpoint
+      try {
+        const idToken = await auth.currentUser?.getIdToken()
+        const payload = {
+          garageId: selectedGarage.id,
+          preferredDate: formData.preferredDate,
+          preferredTime: formData.preferredTime,
+          customerName,
+          customerEmail,
+          customerPhone,
+          vinNumber: formData.vinNumber.trim() || undefined,
+          services,
+          otherService: formData.otherService.trim() || undefined,
+          description: formData.description.trim() || undefined,
+          assignedMechanicId: assignedMechanicId || undefined,
+          assignedMechanicName: assignedMechanicName || undefined,
+        }
 
-      if (result.success) {
-        // Send confirmation email (don't block redirect)
-        try {
-          if (customerEmail) {
-            const emailHtml = getBookingReceivedEmailHtml({
-              customerName,
-              customerEmail,
-              preferredDate: formData.preferredDate,
-              preferredTime: formData.preferredTime,
-              service: formData.service,
-              bookingTag: result.bookingTag || '',
-              photos: [],
-              status: 'pending',
-            } as any)
-            await sendBookingEmail(
-              customerEmail,
-              `Booking Request Received — ${selectedGarage.name || 'Petrol Goons Garage'}`,
-              emailHtml
-            )
+        const res = await fetch('/api/create-job', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+          body: JSON.stringify(payload),
+        })
+        const result = await res.json()
+        if (!res.ok || !result.success) {
+          setError(result.error || 'Unable to create booking; slot may be taken')
+          if (formData.preferredDate && selectedGarage.id) {
+            const slots = await getBookedSlots(selectedGarage.id, formData.preferredDate)
+            setBookedSlots(slots)
+            setFormData(prev => ({ ...prev, preferredTime: '' }))
           }
-          // Notify garage owner
-          if (selectedGarage.ownerEmail) {
-            const adminEmailHtml = getNewBookingAdminEmailHtml({
-              customerName,
-              customerEmail,
-              preferredDate: formData.preferredDate,
-              preferredTime: formData.preferredTime,
-              service: formData.service,
-              bookingTag: result.bookingTag || '',
-              photos: [],
-              status: 'pending',
-            } as any)
-            sendBookingEmail(
-              selectedGarage.ownerEmail,
-              `New Booking: ${customerName} — ${formData.preferredDate}`,
-              adminEmailHtml
-            ).catch(() => {})
+          return
+        }
+
+        // If photos were attached, upload them to storage under the new jobId and tell server
+        if (photos.length > 0) {
+          const uploadedUrls: string[] = []
+          for (let i = 0; i < photos.length; i++) {
+            const file = photos[i]
+            const storageRef = ref(storage, `garages/${selectedGarage.id}/jobs/${result.jobId}/${Date.now()}_${i}_${file.name}`)
+            await uploadBytes(storageRef, file)
+            const url = await getDownloadURL(storageRef)
+            uploadedUrls.push(url)
           }
-        } catch (emailErr) {
-          console.error('Email sending failed (booking still saved):', emailErr)
+
+          await fetch(`/api/jobs/${selectedGarage.id}/${result.jobId}/add-photos`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+            body: JSON.stringify({ photos: uploadedUrls }),
+          })
         }
 
         router.push(`/my-bookings?new=1&tag=${result.bookingTag}`)
-      } else {
-        setError(result.error || 'Something went wrong. Please try again.')
-        if (formData.preferredDate && selectedGarage.id) {
-          const slots = await getBookedSlots(selectedGarage.id, formData.preferredDate)
-          setBookedSlots(slots)
-          setFormData(prev => ({ ...prev, preferredTime: '' }))
-        }
+      } catch (e: any) {
+        console.error('Server booking error:', e)
+        setError('Something went wrong. Please try again.')
       }
     } catch (err: any) {
       console.error('Booking error:', err)
