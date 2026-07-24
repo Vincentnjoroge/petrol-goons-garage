@@ -73,6 +73,7 @@ Your customers can easily book car services online. You and your mechanics see a
 - **Email**: Resend
 - **Hosting**: Vercel 
 
+> Note: This project now uses a server-side Firebase Admin connection for transactional booking creation. The setup requires additional secret env vars: `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`, `RESEND_ADMIN_EMAILS`, and `EMAIL_API_SECRET`.
 
 ## Roadmap
 

@@ -49,7 +49,7 @@ export default function SpecialistsPage() {
     if (!user) { router.push('/'); return }
     setStarting(s.uid)
     try {
-      const isGarage = !!profile?.garageId && profile?.role !== 'customer' && profile?.role !== 'independent_specialist'
+      const isGarage = !!profile?.garageId && (profile?.role as string) !== 'customer' && (profile?.role as string) !== 'independent_specialist'
       if (isGarage && profile?.garageId) {
         await getOrCreateConversation({
           type: 'garage_specialist',
@@ -94,7 +94,7 @@ export default function SpecialistsPage() {
       </div>
 
       {/* Become a specialist CTA — only for users who aren't already one */}
-      {profile?.role !== 'independent_specialist' && (
+      {(profile?.role as string) !== 'independent_specialist' && (
         <button
           onClick={() => router.push('/specialists/onboard')}
           className="mx-4 mt-3 w-[calc(100%-2rem)] flex items-center justify-between bg-petrol-black rounded-2xl px-4 py-3.5 active:scale-[0.99] transition-transform"

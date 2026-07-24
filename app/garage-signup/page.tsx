@@ -69,6 +69,27 @@ export default function GarageSignupPage() {
     return () => { if (unsubscribe) unsubscribe() }
   }, [])
 
+  const getFriendlyAuthError = (code: string, message?: string) => {
+    switch (code) {
+      case 'auth/popup-closed-by-user':
+        return 'Sign-in was cancelled. Try again when you are ready.'
+      case 'auth/popup-blocked':
+        return 'Pop-up was blocked. Trying a different sign-in method...'
+      case 'auth/cancelled-popup-request':
+        return 'Sign-in was cancelled. Please try again.'
+      case 'auth/network-request-failed':
+        return 'Network issue. Check your internet and try again.'
+      case 'auth/unauthorized-domain':
+        return 'This domain is not authorized yet. Contact us on Instagram @petrol_goons.'
+      case 'auth/internal-error':
+        return message?.includes('COOP')
+          ? 'Sign-in is still processing. Please wait and reload if needed.'
+          : 'Sign-in failed. Please try again.'
+      default:
+        return 'Something went wrong. Please try again.'
+    }
+  }
+
   const handleGoogleSignIn = async () => {
     setAuthLoading(true)
     setError('')
@@ -77,17 +98,34 @@ export default function GarageSignupPage() {
       try {
         await signInWithPopup(auth, googleProvider)
       } catch (popupErr: any) {
-        if (popupErr.code === 'auth/popup-blocked') {
-          await signInWithRedirect(auth, googleProvider)
-        } else {
-          throw popupErr
+        if (
+          popupErr.code === 'auth/popup-blocked' ||
+          popupErr.code === 'auth/popup-closed-by-user' ||
+          popupErr.code === 'auth/cancelled-popup-request'
+        ) {
+          try {
+            await signInWithRedirect(auth, googleProvider)
+          } catch (redirectErr) {
+            console.error('Redirect fallback failed:', redirectErr)
+          }
+          return
         }
+
+        if (popupErr.code === 'auth/internal-error' || popupErr.message?.includes('COOP')) {
+          await new Promise((resolve) => setTimeout(resolve, 1500))
+          if (auth.currentUser) {
+            return
+          }
+        }
+
+        throw popupErr
       }
     } catch (err: any) {
-      setError('Sign-in failed. Please try again.')
+      setError(getFriendlyAuthError(err.code, err.message))
       console.error(err)
+    } finally {
+      setAuthLoading(false)
     }
-    setAuthLoading(false)
   }
 
   const toggleService = (service: string) => {

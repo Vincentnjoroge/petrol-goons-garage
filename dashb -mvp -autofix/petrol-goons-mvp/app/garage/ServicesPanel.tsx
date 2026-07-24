@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import {
   GarageService, listServices, addService, updateService, deleteService,
   formatPrice, formatDuration,
-} from '@/lib/services'
+} from '../../lib/services'
 
 /**
  * Drop-in panel for the garage dashboard "Settings" tab.

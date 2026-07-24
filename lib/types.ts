@@ -15,8 +15,6 @@ import { Timestamp } from 'firebase/firestore'
 // ROLES & PERMISSIONS
 // ==============================
 
-export type UserRole = 'super_admin' | 'garage_owner' | 'garage_manager' | 'mechanic' | 'reception' | 'customer'
-
 export type UserRole =
   | 'super_admin'
   | 'garage_owner'
@@ -57,6 +55,8 @@ export interface Garage {
   ownerPhone: string
   location: string
   googleMapsLink?: string
+  county?: string
+  area?: string
   country: string                 // e.g. "KE"
   currency: string                // e.g. "KES"
   region?: string                 // e.g. "Nairobi"
@@ -70,6 +70,8 @@ export interface Garage {
   mechanicCount: string           // "1-2", "3-5", "6-10", "10+"
   currentSystem: string           // What they used before
   operatingHours?: OperatingHours
+  description?: string
+  photos?: string[]
   // Branding (future)
   logoUrl?: string
   primaryColor?: string

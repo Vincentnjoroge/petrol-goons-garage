@@ -50,7 +50,7 @@ export default function SpecialistOnboardPage() {
       setName(p?.displayName || u.displayName || '')
 
       // Already a specialist? Jump to status view.
-      if (p?.role === 'independent_specialist') {
+      if ((p?.role as string) === 'independent_specialist') {
         setStep(3)
       } else {
         // If they started a profile before but didn't finish the role upgrade, prefill.

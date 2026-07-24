@@ -30,12 +30,17 @@
   },
   "include": [
     "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
+    "app/**/*",
+    "lib/**/*",
+    "components/**/*",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "dashb -mvp -autofix",
+    "petrol-goons-mvp",
+    "petrol-goons-autofix",
+    "files"
   ]
 }

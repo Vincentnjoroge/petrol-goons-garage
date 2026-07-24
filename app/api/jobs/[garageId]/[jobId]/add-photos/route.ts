@@ -1,26 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { adminAuth, adminDb } from '@/lib/serverAdmin'
-import { doc, updateDoc } from 'firebase-admin/firestore'
+import { getAdminDb } from '@/lib/serverAdmin'
+import admin from 'firebase-admin'
+import { getBearerToken, verifyFirebaseToken } from '@/lib/authHelpers'
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest, context: { params: Promise<{ garageId: string; jobId: string }> }) {
   try {
-    const authHeader = request.headers.get('authorization') || ''
-    if (!authHeader.startsWith('Bearer ')) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const idToken = authHeader.replace('Bearer ', '')
-    const decoded = await adminAuth.verifyIdToken(idToken).catch(() => null)
+    const token = getBearerToken(request)
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const decoded = await verifyFirebaseToken(token)
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
 
-    const { params } = request.nextUrl as any
-    const garageId = params?.garageId
-    const jobId = params?.jobId
+    const { garageId, jobId } = await context.params
     if (!garageId || !jobId) return NextResponse.json({ error: 'Missing path params' }, { status: 400 })
 
     const body = await request.json()
     const { photos } = body
     if (!Array.isArray(photos)) return NextResponse.json({ error: 'Missing photos array' }, { status: 400 })
 
-    const jobRef = doc(adminDb, 'garages', garageId, 'jobs', jobId)
-    await updateDoc(jobRef as any, { photos, updatedAt: new Date() })
+    const adminDb = getAdminDb()
+    const jobRef = adminDb.collection('garages').doc(garageId).collection('jobs').doc(jobId)
+    await jobRef.update({ photos, updatedAt: admin.firestore.FieldValue.serverTimestamp() })
 
     return NextResponse.json({ success: true })
   } catch (err: any) {

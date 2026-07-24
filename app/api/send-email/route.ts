@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
+import { getBearerToken, verifyFirebaseToken } from '@/lib/authHelpers'
 
 export async function POST(request: NextRequest) {
   try {
-    // Require a server secret to call this endpoint to avoid open relay from client
-    const authHeader = request.headers.get('authorization') || ''
-    const expected = process.env.EMAIL_API_SECRET || ''
-    if (!expected || !authHeader.startsWith('Bearer ') || authHeader.replace('Bearer ', '') !== expected) {
+    const token = getBearerToken(request)
+    let authorized = false
+
+    if (process.env.EMAIL_API_SECRET && token === process.env.EMAIL_API_SECRET) {
+      authorized = true
+    } else if (token) {
+      const decoded = await verifyFirebaseToken(token)
+      authorized = !!decoded
+    }
+
+    if (!authorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

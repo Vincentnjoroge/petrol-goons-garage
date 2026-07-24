@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import { GarageCustomer, Job, JOB_STATUS_LABELS, JOB_STATUS_COLORS, JobStatus } from '@/lib/types'
 import {
   ClientRecord, ClientSort, buildClientRecords, searchClients, sortClients, exportClients,
-} from '@/lib/clients'
+} from '../../lib/clients'
 
 /**
  * Drop-in panel for the garage dashboard "Customers" tab.

@@ -205,8 +205,15 @@ NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
 NEXT_PUBLIC_FIREBASE_APP_ID=
 
+# Firebase Admin (server-only, required for transactional job creation)
+FIREBASE_PROJECT_ID=
+FIREBASE_CLIENT_EMAIL=
+FIREBASE_PRIVATE_KEY=
+
 # Email (secret — server-side only)
 RESEND_API_KEY=
+RESEND_ADMIN_EMAILS=admin1@example.com,admin2@example.com
+EMAIL_API_SECRET=
 
 # Cron job authentication (secret)
 CRON_SECRET=

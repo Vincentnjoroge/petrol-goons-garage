@@ -17,12 +17,12 @@ import {
   query, where, getDocs, orderBy,
   serverTimestamp, Timestamp, setDoc, deleteDoc, limit,
 } from 'firebase/firestore'
-import { db } from './firebase'
+import { db } from '@/lib/firebase'
 import {
   Garage, GarageStatus, StaffMember, GarageCustomer,
   ServiceItem, UserProfile, UserRole, SubscriptionPlan,
   SUBSCRIPTION_PLANS, GARAGE_SERVICES, CURRENT_SYSTEMS, MECHANIC_COUNTS,
-} from './types'
+} from '@/lib/types'
 
 export { GARAGE_SERVICES, CURRENT_SYSTEMS, MECHANIC_COUNTS }
 export type GarageProfile = Garage

@@ -13,6 +13,9 @@ import { getAllGarages, updateGarageProfile, GarageProfile, getUserProfile } fro
 type DashboardView = 'bookings' | 'garages'
 type FilterTab = 'upcoming' | 'completed' | 'cancelled' | 'all'
 type SortOption = 'date-desc' | 'date-asc' | 'name-asc' | 'name-desc'
+const GARAGE_STAFF_ROLES = ['garage_owner', 'garage_manager', 'mechanic', 'reception'] as const
+
+type GarageStaffRole = (typeof GARAGE_STAFF_ROLES)[number]
 
 const MECHANICS = [
   { id: 'mike-d', name: 'Mike D' },
@@ -65,15 +68,14 @@ export default function DashboardPage() {
         unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
           clearTimeout(timeout)
           if (currentUser) {
-            // Only super admins (Petrol Goons team) can access this page
+            // Only super admins can access this admin dashboard.
+            // Garage staff should use the garage dashboard and customers should use their bookings page.
             if (!isSuperAdmin(currentUser.email)) {
-              // Check if they're a garage owner — redirect them to their own dashboard
               const profile = await getUserProfile(currentUser.uid)
-              if (profile?.garageId) {
+              if (profile?.garageId && GARAGE_STAFF_ROLES.includes(profile.role as GarageStaffRole)) {
                 window.location.href = '/garage'
                 return
               }
-              // Regular customer — send to their bookings
               window.location.href = '/my-bookings'
               return
             }

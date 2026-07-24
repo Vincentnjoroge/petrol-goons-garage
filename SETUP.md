@@ -71,8 +71,24 @@ NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
-RESEND_API_KEY=re_your_api_key_here
 ```
+4. Add server-only Firebase Admin values:
+```
+FIREBASE_PROJECT_ID=your_project_id
+FIREBASE_CLIENT_EMAIL=your_service_account_email@your-project.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+```
+5. Add email and auth secrets:
+```
+RESEND_API_KEY=re_your_api_key_here
+RESEND_ADMIN_EMAILS=admin1@example.com,admin2@example.com
+EMAIL_API_SECRET=some-long-secret-value
+CRON_SECRET=some-long-cron-secret
+```
+
+> Notes:
+> - `FIREBASE_PRIVATE_KEY` should be the full service account private key string, with `\n` escaped if set in the `.env.local` file.
+> - `EMAIL_API_SECRET` is required to protect the internal email route and should never be exposed to the browser.
 
 ## Step 8: Test Locally
 

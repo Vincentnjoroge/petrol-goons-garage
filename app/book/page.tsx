@@ -16,7 +16,7 @@ import {
   ConfirmationResult,
   User,
 } from 'firebase/auth'
-import { auth, storage } from '@/lib/firebase'
+import { auth, storage, getFreshFirebaseIdToken } from '@/lib/firebase'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { getApprovedGarages, getGarageById, getGarageMechanics } from '@/lib/garages'
 import { createJob, generateTimeSlots, formatSlotTime, getBookedSlots, isSunday } from '@/lib/jobs'
@@ -260,7 +260,12 @@ function BookingPageContent() {
 
       // Use server-side transactional booking endpoint
       try {
-        const idToken = await auth.currentUser?.getIdToken()
+        const idToken = await getFreshFirebaseIdToken()
+        if (!idToken) {
+          setError('Your sign-in session needs to be refreshed. Please sign in again and try again.')
+          return
+        }
+
         const payload = {
           garageId: selectedGarage.id,
           preferredDate: formData.preferredDate,

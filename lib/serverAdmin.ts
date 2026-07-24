@@ -1,20 +1,40 @@
 import { initializeApp, getApps, cert, type App } from 'firebase-admin/app'
-import { getAuth } from 'firebase-admin/auth'
-import { getFirestore } from 'firebase-admin/firestore'
+import { getAuth, type Auth } from 'firebase-admin/auth'
+import { getFirestore, type Firestore } from 'firebase-admin/firestore'
 
-// Server-side Firebase admin init helper.
-// Requires server-only env vars: FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY
-function getAdminApp(): App {
+function getAdminApp(): App | null {
   if (getApps().length) return getApps()[0]
+
+  const projectId = process.env.FIREBASE_PROJECT_ID
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY
+
+  if (!projectId || !clientEmail || !privateKey) {
+    return null
+  }
 
   return initializeApp({
     credential: cert({
-      projectId: process.env.FIREBASE_PROJECT_ID!,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL!,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY!.replace(/\\n/g, '\n'),
+      projectId,
+      clientEmail,
+      privateKey: privateKey.replace(/\\n/g, '\n'),
     }),
   })
 }
 
-export const adminAuth = getAuth(getAdminApp())
-export const adminDb = getFirestore(getAdminApp())
+function getRequiredAdminApp(): App {
+  const adminApp = getAdminApp()
+  if (!adminApp) {
+    throw new Error('Missing Firebase Admin SDK environment variables: FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY')
+  }
+  return adminApp
+}
+
+export function getAdminAuth(): Auth | null {
+  const adminApp = getAdminApp()
+  return adminApp ? getAuth(adminApp) : null
+}
+
+export function getAdminDb(): Firestore {
+  return getFirestore(getRequiredAdminApp())
+}

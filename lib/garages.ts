@@ -75,10 +75,15 @@ export async function createGarage(
     ownerEmail: string
     ownerPhone: string
     location: string
+    county?: string
+    area?: string
     googleMapsLink?: string
     country?: string
     currency?: string
     region?: string
+    description?: string
+    photos?: string[]
+    operatingHours?: any
     servicesOffered: string[]
     mechanicCount: string
     currentSystem: string
@@ -97,10 +102,15 @@ export async function createGarage(
       ownerEmail: data.ownerEmail,
       ownerPhone: data.ownerPhone,
       location: data.location,
+      county: data.county || '',
+      area: data.area || '',
       googleMapsLink: data.googleMapsLink || '',
       country: data.country || 'KE',
       currency: data.currency || 'KES',
       region: data.region || '',
+      description: data.description || '',
+      photos: data.photos || [],
+      operatingHours: data.operatingHours || null,
       status: 'pending' as GarageStatus,
       subscriptionPlan: plan,
       subscriptionStatus: 'trial',

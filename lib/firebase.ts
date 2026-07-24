@@ -46,5 +46,21 @@ export const googleProvider = new GoogleAuthProvider()
 export const facebookProvider = new FacebookAuthProvider()
 export const appleProvider = new OAuthProvider('apple.com')
 
+export async function getFreshFirebaseIdToken(): Promise<string | null> {
+  if (!auth.currentUser) return null
+
+  try {
+    await auth.currentUser.reload()
+  } catch {
+    // Ignore reload errors and continue with a fresh token request.
+  }
+
+  try {
+    return await auth.currentUser.getIdToken(true)
+  } catch {
+    return null
+  }
+}
+
 export { auth, db, storage }
 export default app

@@ -55,7 +55,7 @@ export default function ChatListPage() {
     return () => unsub()
   }, [])
 
-  const isGarageStaff = !!profile?.garageId && profile?.role !== 'customer' && profile?.role !== 'independent_specialist'
+  const isGarageStaff = !!profile?.garageId && (profile?.role as string) !== 'customer' && (profile?.role as string) !== 'independent_specialist'
 
   useEffect(() => {
     if (!user) return
@@ -99,10 +99,10 @@ export default function ChatListPage() {
           <h2 className="text-base font-bold text-petrol-black mb-1">No conversations yet</h2>
           <p className="text-sm text-gray-500">
             {isGarageStaff ? 'Customer and specialist messages appear here.'
-              : profile?.role === 'independent_specialist' ? 'Consultations with customers and garages appear here.'
+              : (profile?.role as string) === 'independent_specialist' ? 'Consultations with customers and garages appear here.'
               : 'Message a garage or book a specialist consult.'}
           </p>
-          {profile?.role !== 'independent_specialist' && !isGarageStaff && (
+          {(profile?.role as string) !== 'independent_specialist' && !isGarageStaff && (
             <button onClick={() => router.push('/specialists')} className="mt-5 text-sm font-semibold text-petrol-black bg-petrol-yellow rounded-xl px-5 py-2.5">
               Find a Specialist
             </button>
